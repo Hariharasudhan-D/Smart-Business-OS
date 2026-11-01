@@ -36,14 +36,14 @@ function NewSaleModal({ onClose }) {
   // Put the new product into the first empty line, or a new line.
   const onProductCreated = (p) =>
     setLines((ls) => {
-      const filled = { productId: p.id, price: String(p.sellingPrice) };
+      const filled = { productId: p.id, price: p.sellingPrice > 0 ? String(p.sellingPrice) : '' };
       const empty = ls.find((l) => !l.productId);
       return empty ? ls.map((l) => (l === empty ? { ...l, ...filled } : l)) : [...ls, { ...newLine(), ...filled }];
     });
   const updateLine = (key, patch) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const onProductChange = (key, productId) => {
     const p = products.find((x) => x.id === productId);
-    updateLine(key, { productId, price: p ? String(p.sellingPrice) : '' });
+    updateLine(key, { productId, price: p && p.sellingPrice > 0 ? String(p.sellingPrice) : '' });
   };
   const items = lines.filter((l) => l.productId).map((l) => ({ productId: l.productId, qty: Number(l.qty) || 0, price: Number(l.price) || 0, discount: Number(l.discount) || 0 }));
   const totals = saleTotals(items);

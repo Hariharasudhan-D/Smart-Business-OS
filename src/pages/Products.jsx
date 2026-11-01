@@ -42,7 +42,9 @@ export function ProductFormModal({ product, onClose, onSaved, defaultKind }) {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   // Purchase-only products are never sold, so they have no selling price.
-  const sells = form.kind !== 'purchase';
+  // Selling products carry no prices (the price is typed on each sale); purchase products have a cost, 'both' has cost and selling price.
+  const hasCost = form.kind === 'purchase' || form.kind === 'both';
+  const hasSelling = form.kind === 'both';
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const validate = () => {
     const e = {};
@@ -53,9 +55,9 @@ export function ProductFormModal({ product, onClose, onSaved, defaultKind }) {
       if (form[k] === '' || Number.isNaN(v)) e[k] = 'Required';
       else if (v < min) e[k] = min > 0 ? 'Must be greater than 0' : 'Cannot be negative';
     };
-    num('costPrice', 0.01);
-    if (sells) num('sellingPrice', 0.01);
-    if (sells && !e.costPrice && !e.sellingPrice && Number(form.sellingPrice) < Number(form.costPrice)) e.sellingPrice = 'Selling price is below cost';
+    if (hasCost) num('costPrice', 0.01);
+    if (hasSelling) num('sellingPrice', 0.01);
+    if (hasSelling && !e.costPrice && !e.sellingPrice && Number(form.sellingPrice) < Number(form.costPrice)) e.sellingPrice = 'Selling price is below cost';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -65,8 +67,8 @@ export function ProductFormModal({ product, onClose, onSaved, defaultKind }) {
     try {
       const data = {
         name: form.name.trim(),
-        costPrice: Number(form.costPrice),
-        sellingPrice: sells ? Number(form.sellingPrice) : 0,
+        costPrice: hasCost ? Number(form.costPrice) : 0,
+        sellingPrice: hasSelling ? Number(form.sellingPrice) : 0,
         unit: form.unit,
         kind: form.kind,
       };
@@ -116,15 +118,16 @@ export function ProductFormModal({ product, onClose, onSaved, defaultKind }) {
             ]}
           />
         </div>
-        <Input label="Cost price (₹)" type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} error={errors.costPrice} />
-        {sells && <Input label="Selling price (₹)" type="number" min="0" step="0.01" value={form.sellingPrice} onChange={set('sellingPrice')} error={errors.sellingPrice} />}
+        {hasCost && <Input label="Cost price (₹)" type="number" min="0" step="0.01" value={form.costPrice} onChange={set('costPrice')} error={errors.costPrice} />}
+        {hasSelling && <Input label="Selling price (₹)" type="number" min="0" step="0.01" value={form.sellingPrice} onChange={set('sellingPrice')} error={errors.sellingPrice} />}
         <Select label="Unit" value={form.unit} onChange={set('unit')} options={units.map((u) => ({ value: u, label: u }))} />
       </div>
     </Modal>
   );
 }
 export default function Products({ mode }) {
-  const priceKey = mode === 'purchase' ? 'costPrice' : 'sellingPrice';
+  const priceKey = 'costPrice';
+  const priceText = (p) => (p.kind === 'selling' ? '-' : p.kind === 'purchase' ? formatINR(p.costPrice) : `${formatINR(p.costPrice)} / ${formatINR(p.sellingPrice)}`);
   const manage = mode === 'manage';
   const { products, loading, deleteProduct } = useData();
   const [search, setSearch] = useState('');
@@ -179,7 +182,7 @@ export default function Products({ mode }) {
           manage
             ? 'Create and maintain your product catalogue'
             : mode === 'selling'
-              ? 'Items you sell, with selling price. Add new products in Add Products'
+              ? 'Items you sell. Add new products in Add Products'
               : 'Items you buy, with cost price. Add new products in Add Products'
         }
         action={
@@ -205,7 +208,8 @@ export default function Products({ mode }) {
             <THead>
               <Th>Product</Th>
               {manage && <Th className="hidden sm:table-cell">Type</Th>}
-              <SortHeader k={priceKey} label={mode === 'purchase' ? 'Cost price' : 'Selling price'} />
+              {mode === 'purchase' && <SortHeader k={priceKey} label="Cost price" />}
+              {manage && <Th>Cost / selling price</Th>}
               <Th className="hidden sm:table-cell">Unit</Th>
               <Th className="text-right"><span className="sr-only sm:not-sr-only">Actions</span></Th>
             </THead>
@@ -233,7 +237,8 @@ export default function Products({ mode }) {
                         </Badge>
                       </Td>
                     )}
-                    <Td>{formatINR(p[priceKey])}</Td>
+                    {mode === 'purchase' && <Td>{formatINR(p.costPrice)}</Td>}
+                    {manage && <Td>{priceText(p)}</Td>}
                     <Td className="hidden sm:table-cell">{p.unit}</Td>
                     <Td className="text-right">
                       <Button variant="ghost" size="sm" onClick={() => setEditing(p)} aria-label={`Edit ${p.name}`}>
