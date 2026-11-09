@@ -16,12 +16,15 @@ final class Money {
     return round(price.multiply(BigDecimal.valueOf(qty)));
   }
 
-  static BigDecimal percentOf(BigDecimal amount, BigDecimal percent) {
-    return round(amount.multiply(percent).divide(HUNDRED, 6, RoundingMode.HALF_UP));
+  static BigDecimal times(BigDecimal qty, BigDecimal price) {
+    return round(price.multiply(qty));
   }
 
-  static BigDecimal afterDiscount(int qty, BigDecimal price, BigDecimal discountPercent) {
-    BigDecimal gross = price.multiply(BigDecimal.valueOf(qty));
-    return round(gross.multiply(HUNDRED.subtract(discountPercent)).divide(HUNDRED, 6, RoundingMode.HALF_UP));
+  static BigDecimal afterDiscount(BigDecimal qty, BigDecimal price, BigDecimal discountPercent) {
+    return round(price.multiply(qty).multiply(HUNDRED.subtract(discountPercent)).divide(HUNDRED, 6, RoundingMode.HALF_UP));
+  }
+
+  static BigDecimal percentOf(BigDecimal amount, BigDecimal percent) {
+    return round(amount.multiply(percent).divide(HUNDRED, 6, RoundingMode.HALF_UP));
   }
 }

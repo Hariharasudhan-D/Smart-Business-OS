@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Bell, ChevronDown, LayoutDashboard, Menu, Package, Receipt, ShoppingCart, Truck, Users, X } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { Bell, ChevronDown, LayoutDashboard, LogOut, Menu, Package, Receipt, ShoppingCart, Truck, Users, X } from 'lucide-react';
 const nav = [
   { to: '/', label: 'Overview', icon: LayoutDashboard, end: true },
   {
@@ -84,6 +85,7 @@ function SidebarContent({ onNavigate }) {
 }
 export default function Layout() {
   const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
   const { pathname } = useLocation();
   // Close the mobile drawer whenever the route changes.
   useEffect(() => setOpen(false), [pathname]);
@@ -121,9 +123,19 @@ export default function Layout() {
               <Bell size={18} />
             </button>
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">AD</div>
-              <span className="hidden text-sm font-medium text-slate-700 sm:block">Admin</span>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
+                {(user ?? 'A').slice(0, 2).toUpperCase()}
+              </div>
+              <span className="hidden max-w-[10rem] truncate text-sm font-medium text-slate-700 sm:block">{user}</span>
             </div>
+            <button
+              onClick={logout}
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Sign out"
+            >
+              <LogOut size={18} />
+              <span className="hidden sm:inline">Sign out</span>
+            </button>
           </div>
         </header>
         <main className="mx-auto min-w-0 max-w-7xl p-4 sm:p-6 lg:p-8">

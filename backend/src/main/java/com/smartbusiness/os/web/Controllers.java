@@ -11,11 +11,15 @@ import com.smartbusiness.os.repo.Repositories.ProductRepository;
 import com.smartbusiness.os.repo.Repositories.SellerRepository;
 import com.smartbusiness.os.service.PurchaseService;
 import com.smartbusiness.os.service.SaleService;
+import com.smartbusiness.os.service.WebsiteSyncService;
 import jakarta.validation.Valid;
 import jakarta.validation.Validator;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,8 +35,19 @@ public final class Controllers {
   @RestController
   @RequestMapping("/api/products")
   public static class ProductController extends CrudController<Product> {
-    public ProductController(ProductRepository repo, ObjectMapper mapper, Validator validator) {
+    private final WebsiteSyncService sync;
+
+    public ProductController(ProductRepository repo, ObjectMapper mapper, Validator validator, WebsiteSyncService sync) {
       super(repo, mapper, validator, "Product");
+      this.sync = sync;
+    }
+
+    /** The website's cakes are always part of the product list (same as in the phone app). */
+    @Override
+    @GetMapping
+    public List<Product> list() {
+      sync.syncCakes();
+      return super.list();
     }
   }
 
@@ -47,8 +62,19 @@ public final class Controllers {
   @RestController
   @RequestMapping("/api/customers")
   public static class CustomerController extends CrudController<Customer> {
-    public CustomerController(CustomerRepository repo, ObjectMapper mapper, Validator validator) {
+    private final WebsiteSyncService sync;
+
+    public CustomerController(CustomerRepository repo, ObjectMapper mapper, Validator validator, WebsiteSyncService sync) {
       super(repo, mapper, validator, "Customer");
+      this.sync = sync;
+    }
+
+    /** Website buyers are always part of the customer list (same as in the phone app). */
+    @Override
+    @GetMapping
+    public List<Customer> list() {
+      sync.syncCustomers();
+      return super.list();
     }
   }
 
@@ -61,9 +87,23 @@ public final class Controllers {
       this.service = service;
     }
 
+    /**
+     * Without parameters: every purchase (as before). With page: one page, as {items, total, page, size, hasMore}.
+     * from / to / q filter by purchase day and supplier or bill number; without page they return the filtered list.
+     */
     @GetMapping
-    public List<Purchase> list() {
-      return service.list();
+    public Object list(
+        @RequestParam(required = false) Integer page,
+        @RequestParam(required = false) Integer size,
+        @RequestParam(required = false) String q,
+        @RequestParam(required = false) LocalDate from,
+        @RequestParam(required = false) LocalDate to) {
+      if (page == null && size == null && q == null && from == null && to == null) return service.list();
+      if (page != null && page < 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be 0 or more");
+      int pageSize = PageResult.clampSize(size, 30);
+      var result = service.search(from, to, q, page, pageSize);
+      if (page == null) return result.getContent();
+      return PageResult.of(result.getContent(), result.getTotalElements(), page, pageSize);
     }
 
     @GetMapping("/{id}")

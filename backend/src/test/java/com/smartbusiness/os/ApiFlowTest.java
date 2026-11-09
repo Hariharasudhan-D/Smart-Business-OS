@@ -10,19 +10,31 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.smartbusiness.os.auth.JwtService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.context.WebApplicationContext;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 @org.springframework.test.context.ActiveProfiles("test")
 class ApiFlowTest {
-  @Autowired MockMvc mvc;
+  @Autowired WebApplicationContext ctx;
+  @Autowired JwtService jwt;
+  MockMvc mvc;
   @Autowired ObjectMapper json;
+
+  @BeforeEach
+  void signIn() {
+    String token = jwt.create("admin@test.com", jwt.expiryFromNow());
+    mvc = MockMvcBuilders.webAppContextSetup(ctx).defaultRequest(get("/").header("Authorization", "Bearer " + token)).build();
+  }
 
   private JsonNode send(org.springframework.test.web.servlet.RequestBuilder req, int expected) throws Exception {
     String body = mvc.perform(req).andExpect(status().is(expected)).andReturn().getResponse().getContentAsString();
@@ -31,6 +43,21 @@ class ApiFlowTest {
 
   private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder jsonPost(String url, String body) {
     return post(url).contentType(MediaType.APPLICATION_JSON).content(body);
+  }
+
+  @Test
+  void productKeepsPhoneAppPhotoAndRejectsHugeOnes() throws Exception {
+    // A shrunk phone photo (~30 KB as base64) is saved and read back unchanged.
+    String photo = "data:image/jpeg;base64," + "A".repeat(30_000);
+    String id = send(jsonPost("/api/products",
+        "{\"name\":\"Truffle Cake\",\"costPrice\":0,\"sellingPrice\":0,\"unit\":\"kg\",\"kind\":\"selling\",\"image\":\"" + photo + "\"}"), 201)
+        .get("id").asText();
+    mvc.perform(get("/api/products/" + id)).andExpect(jsonPath("$.image").value(photo));
+
+    // A picture far above the cap is refused with a readable message.
+    String huge = "data:image/jpeg;base64," + "A".repeat(400_001);
+    send(jsonPost("/api/products",
+        "{\"name\":\"Too big\",\"costPrice\":10,\"sellingPrice\":0,\"unit\":\"pcs\",\"kind\":\"purchase\",\"image\":\"" + huge + "\"}"), 400);
   }
 
   @Test

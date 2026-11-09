@@ -53,6 +53,11 @@ public class ApiExceptionHandler {
     return body(HttpStatus.CONFLICT, "Not allowed: the record is still in use (for example a buyer who has sales).");
   }
 
+  @ExceptionHandler(org.springframework.web.servlet.resource.NoResourceFoundException.class)
+  ResponseEntity<Map<String, String>> notFound(Exception ex) {
+    return body(HttpStatus.NOT_FOUND, "Not found");
+  }
+
   @ExceptionHandler(Exception.class)
   ResponseEntity<Map<String, String>> unexpected(Exception ex) {
     log.error("Unhandled error", ex);

@@ -3,15 +3,18 @@ package com.smartbusiness.os.model;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "sellers")
 public class Seller extends BaseEntity {
-  @NotBlank private String name;
-  private String phone = "";
-  private String email = "";
-  private String address = "";
-  private String gstin = "";
+  // Limits match the database columns, so overlong input is a clear 400, not a server error.
+  @NotBlank @Size(max = 200) private String name;
+  @Size(max = 40) private String phone = "";
+  @Email @Size(max = 200) private String email = "";
+  @Size(max = 500) private String address = "";
+  @Size(max = 30) private String gstin = "";
 
   public String getName() { return name; }
   public void setName(String name) { this.name = name; }

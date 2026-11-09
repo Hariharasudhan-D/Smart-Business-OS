@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from 'react';
 import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useDebounced, useServerPage } from '../hooks/useServerPage';
 import { purchaseLineTotal, purchaseTotals } from '../utils/calc';
 import { formatDate, formatINR, formatINR2, todayISO } from '../utils/format';
 import Button from '../components/ui/Button';
@@ -172,19 +173,18 @@ function NewPurchaseModal({ onClose }) {
   );
 }
 export default function Purchases() {
-  const { purchases, products, loading, deletePurchase } = useData();
+  // `purchases` is only used to notice adds/deletes; the table itself is one page from the server.
+  const { purchases, products, deletePurchase } = useData();
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState(null);
   const [creating, setCreating] = useState(false);
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return purchases.filter((p) => !q || p.supplier.toLowerCase().includes(q) || p.invoiceNo.toLowerCase().includes(q));
-  }, [purchases, search]);
-  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
-  const rows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const q = useDebounced(search);
+  // Newest first: only this page is downloaded; search (supplier or bill number) runs on the server.
+  const { rows, total, loading, error } = useServerPage('/purchases', { page, size: PAGE_SIZE, q }, purchases);
+  const currentPage = page;
   const productName = (id) => products.find((p) => p.id === id)?.name ?? 'Unknown product';
   return (
     <>
@@ -209,7 +209,8 @@ export default function Purchases() {
             placeholder="Search supplier or invoice"
           />
         </div>
-        {loading ? (
+        {error && <p className="m-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
+        {loading && rows.length === 0 ? (
           <TableSkeleton />
         ) : rows.length === 0 ? (
           <EmptyState title="No purchases found" description="Record a new purchase." />
@@ -305,14 +306,14 @@ export default function Purchases() {
             </TBody>
           </Table>
         )}
-        <Pagination page={currentPage} pageSize={PAGE_SIZE} total={filtered.length} onChange={setPage} />
+        <Pagination page={currentPage} pageSize={PAGE_SIZE} total={total} onChange={setPage} />
       </Card>
 
       {creating && <NewPurchaseModal onClose={() => setCreating(false)} />}
       <ConfirmDialog
         open={!!deleting}
         title="Delete purchase"
-        message={deleting ? `Delete purchase ${deleting.invoiceNo} from ${deleting.supplier}? This cannot be undone.` : ''}
+        message={deleting ? `Delete purchase ${deleting.invoiceNo} from ${deleting.supplier} (${formatINR(deleting.total)})? Purchases will go down by ${formatINR(deleting.total)} and profit will go up by the same amount. This cannot be undone.` : ''}
         busy={busy}
         onCancel={() => setDeleting(null)}
         onConfirm={async () => {

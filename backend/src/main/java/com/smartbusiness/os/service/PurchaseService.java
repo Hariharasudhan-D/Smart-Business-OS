@@ -17,6 +17,23 @@ public class PurchaseService {
   private final PurchaseRepository purchases;
   private final ProductRepository products;
 
+  /**
+   * Purchases newest first, filtered by day range and supplier / bill-number search, one page at a time
+   * (page null = all matching rows). Only the requested rows and their items are read (2–3 queries).
+   */
+  @Transactional(readOnly = true)
+  public org.springframework.data.domain.Page<Purchase> search(java.time.LocalDate from, java.time.LocalDate to, String q, Integer page, int size) {
+    String search = q == null ? "" : q.trim().toLowerCase();
+    String like = "%" + search.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+    Sort newestFirst = Sort.by(Sort.Direction.DESC, "date").and(Sort.by(Sort.Direction.DESC, "createdAt"));
+    org.springframework.data.domain.Pageable pageable =
+        page == null ? org.springframework.data.domain.Pageable.unpaged(newestFirst) : org.springframework.data.domain.PageRequest.of(page, size, newestFirst);
+    return purchases.search(
+        from == null ? java.time.LocalDate.of(1900, 1, 1) : from,
+        to == null ? java.time.LocalDate.of(9999, 12, 31) : to,
+        like, pageable);
+  }
+
   public PurchaseService(PurchaseRepository purchases, ProductRepository products) {
     this.purchases = purchases;
     this.products = products;
@@ -46,10 +63,11 @@ public class PurchaseService {
     purchase.setSupplier(purchase.getSupplier().trim());
     purchase.setInvoiceNo(purchase.getInvoiceNo().trim());
 
-    for (PurchaseItem item : purchase.getItems()) {
-      if (!products.existsById(item.productId())) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown product in purchase: " + item.productId());
-      }
+    // All products checked in one query (was one query per item).
+    java.util.Set<java.util.UUID> productIds = new java.util.HashSet<>();
+    purchase.getItems().forEach(i -> productIds.add(i.productId()));
+    if (productIds.contains(null) || products.countByIdIn(productIds) != productIds.size()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown product in purchase");
     }
     return purchases.save(purchase);
   }

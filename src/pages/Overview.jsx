@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowDownRight, ArrowUpRight, IndianRupee, TrendingUp, Truck } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Bike, IndianRupee, TrendingDown, TrendingUp, Truck } from 'lucide-react';
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { useData } from '../context/DataContext';
+import { reportApi } from '../api/report';
 import { saleLineTotal } from '../utils/calc';
 import { formatDate, formatINR, monthKey, todayISO } from '../utils/format';
 import Card from '../components/ui/Card';
@@ -43,45 +44,6 @@ function presetRange(preset, today) {
   return ranges[preset];
 }
 
-// Up to ~2 months shows one point per day, longer ranges one point per month.
-function buildSeries(from, to, sales, purchases) {
-  const days = Math.round((to - from) / 86400000) + 1;
-  const daily = days <= 62;
-  const crossesYear = from.getFullYear() !== to.getFullYear();
-  const rows = [];
-  if (daily) {
-    for (let d = new Date(from); d <= to; d.setDate(d.getDate() + 1)) {
-      rows.push({ key: toISO(d), label: `${d.getDate()} ${d.toLocaleString('en-IN', { month: 'short' })}`, full: shortDate(d), sales: 0, purchases: 0, profit: 0 });
-    }
-  } else {
-    for (let d = new Date(from.getFullYear(), from.getMonth(), 1); d <= to; d.setMonth(d.getMonth() + 1)) {
-      const month = d.toLocaleString('en-IN', { month: 'short' });
-      rows.push({
-        key: `${d.getFullYear()}-${pad(d.getMonth() + 1)}`,
-        label: crossesYear ? `${month} '${String(d.getFullYear()).slice(2)}` : month,
-        full: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
-        sales: 0,
-        purchases: 0,
-        profit: 0,
-      });
-    }
-  }
-  const byKey = new Map(rows.map((r) => [r.key, r]));
-  const fromISO = toISO(from);
-  const toISOStr = toISO(to);
-  const add = (date, field, amount) => {
-    if (date < fromISO || date > toISOStr) return;
-    const row = byKey.get(daily ? date : monthKey(date));
-    if (row) row[field] += amount;
-  };
-  sales.forEach((x) => add(x.date, 'sales', x.total));
-  purchases.forEach((x) => add(x.date, 'purchases', x.total));
-  rows.forEach((r) => {
-    r.profit = r.sales - r.purchases;
-  });
-  return { rows, daily };
-}
-
 const trimZero = (n) => String(Number(n.toFixed(1)));
 const compactINR = (n) => (n >= 100000 ? `₹${trimZero(n / 100000)}L` : n >= 1000 ? `₹${trimZero(n / 1000)}k` : `₹${n}`);
 // % change of the last 3 months versus the 3 months before that.
@@ -101,13 +63,13 @@ function Trend({ value, goodWhenUp = true }) {
     </span>
   );
 }
-function Kpi({ label, value, icon: Icon, tone, footer }) {
+function Kpi({ label, value, icon: Icon, tone, footer, valueClass = 'text-slate-900' }) {
   return (
     <Card>
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-500">{label}</p>
-          <p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
+          <p className={`mt-1 text-2xl font-semibold ${valueClass}`}>{value}</p>
         </div>
         <div className={`rounded-lg p-2 ${tone}`}>
           <Icon size={20} />
@@ -123,67 +85,47 @@ export default function Overview() {
   const [rangePreset, setRangePreset] = useState('last12');
   const [customFrom, setCustomFrom] = useState(() => `${todayISO().slice(0, 8)}01`);
   const [customTo, setCustomTo] = useState(() => todayISO());
-  const data = useMemo(() => {
-    // Last 12 calendar months, oldest first.
+  // Sales, purchases and profit come from the server (same numbers as the phone app).
+  const [reports, setReports] = useState(null);
+  const [reportError, setReportError] = useState('');
+  useEffect(() => {
     const now = new Date();
-    const months = Array.from({ length: 12 }, (_, i) => {
-      const d = new Date(now.getFullYear(), now.getMonth() - (11 - i), 1);
-      return { key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`, label: d.toLocaleString('en-IN', { month: 'short' }), sales: 0, purchases: 0, profit: 0 };
-    });
-    const byKey = new Map(months.map((m) => [m.key, m]));
-    sales.forEach((s) => {
-      const m = byKey.get(monthKey(s.date));
-      if (!m) return;
-      m.sales += s.total;
-    });
-    purchases.forEach((p) => {
-      const m = byKey.get(monthKey(p.date));
-      if (m) m.purchases += p.total;
-    });
-    months.forEach((m) => {
-      m.profit = m.sales - m.purchases;
-    });
-    const yearMap = new Map();
-    const addYear = (date, field, amount) => {
-      const y = date.slice(0, 4);
-      const row = yearMap.get(y) ?? { key: y, label: y, sales: 0, purchases: 0, profit: 0 };
-      row[field] += amount;
-      yearMap.set(y, row);
+    const first = toISO(new Date(now.getFullYear(), now.getMonth() - 11, 1));
+    let alive = true;
+    Promise.all([reportApi.get(first, todayISO(), 'month'), reportApi.get(`${now.getFullYear() - 4}-01-01`, todayISO(), 'year')])
+      .then(([m, y]) => alive && (setReports({ m, y }), setReportError('')))
+      .catch((err) => alive && setReportError(err.message));
+    return () => {
+      alive = false;
     };
-    sales.forEach((s) => addYear(s.date, 'sales', s.total));
-    purchases.forEach((p) => addYear(p.date, 'purchases', p.total));
-    const thisYear = now.getFullYear();
-    const firstYear = Math.min(thisYear, ...[...yearMap.keys()].map(Number));
-    const years = [];
-    for (let y = firstYear; y <= thisYear; y += 1) {
-      const row = yearMap.get(String(y)) ?? { key: String(y), label: String(y), sales: 0, purchases: 0, profit: 0 };
-      row.profit = row.sales - row.purchases;
-      years.push(row);
-    }
+  }, [sales, purchases]);
+  const monthLabel = (key) => new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1, 1).toLocaleString('en-IN', { month: 'short' });
+  const toRow = (r, label) => ({ key: r.key, label, sales: Number(r.sales), purchases: Number(r.purchases), profit: Number(r.profit) });
+  const months = useMemo(() => (reports ? reports.m.rows.map((r) => toRow(r, monthLabel(r.key))) : []), [reports]);
+  const years = useMemo(() => (reports ? reports.y.rows.map((r) => toRow(r, r.key)) : []), [reports]);
+  const sumOf = (rows) => rows.reduce((t, r) => ({ sales: t.sales + r.sales, purchases: t.purchases + r.purchases, profit: t.profit + r.profit }), { sales: 0, purchases: 0, profit: 0 });
+  const yearTotals = sumOf(months);
+  const data = useMemo(() => {
     const qtyByProduct = new Map();
+    const nameByKey = new Map();
     const revenueByMode = new Map();
     sales.forEach((s) =>
       s.items.forEach((i) => {
-        qtyByProduct.set(i.productId, (qtyByProduct.get(i.productId) ?? 0) + i.qty);
+        // website items carry their own cake name instead of an OS product id
+        const key = i.productId ?? `name:${i.name}`;
+        nameByKey.set(key, products.find((p) => p.id === i.productId)?.name ?? i.name ?? 'Unknown product');
+        qtyByProduct.set(key, (qtyByProduct.get(key) ?? 0) + i.qty);
         revenueByMode.set(s.paymentMode, (revenueByMode.get(s.paymentMode) ?? 0) + saleLineTotal(i));
       }),
     );
     const topProducts = [...qtyByProduct.entries()]
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
-      .map(([id, qty]) => ({ name: products.find((p) => p.id === id)?.name ?? id, qty }));
+      .map(([key, qty]) => ({ name: nameByKey.get(key), qty }));
     const categories = [...revenueByMode.entries()].map(([name, value]) => ({ name, value: Math.round(value) })).sort((a, b) => b.value - a.value);
-    return {
-      months,
-      years,
-      topProducts,
-      categories,
-      totalSales: months.reduce((s, m) => s + m.sales, 0),
-      totalPurchases: months.reduce((s, m) => s + m.purchases, 0),
-      totalProfit: months.reduce((s, m) => s + m.profit, 0),
-    };
-  }, [sales, purchases, products]);
-  const range = useMemo(() => {
+    return { topProducts, categories };
+  }, [sales, products]);
+  const rangeInput = useMemo(() => {
     const today = parseISO(todayISO());
     let from;
     let to;
@@ -195,15 +137,40 @@ export default function Overview() {
     } else {
       [from, to] = presetRange(rangePreset, today);
     }
-    const { rows, daily } = buildSeries(from, to, sales, purchases);
-    const totals = rows.reduce(
-      (t, r) => ({ sales: t.sales + r.sales, purchases: t.purchases + r.purchases, profit: t.profit + r.profit }),
-      { sales: 0, purchases: 0, profit: 0 },
-    );
+    const days = Math.round((to - from) / 86400000) + 1;
+    return { from, to, daily: days <= 62 };
+  }, [rangePreset, customFrom, customTo]);
+  const [rangeReport, setRangeReport] = useState(null);
+  useEffect(() => {
+    if (rangeInput.error) return undefined;
+    let alive = true;
+    reportApi
+      .get(toISO(rangeInput.from), toISO(rangeInput.to), rangeInput.daily ? 'day' : 'month')
+      .then((r) => alive && setRangeReport(r))
+      .catch(() => alive && setRangeReport(null));
+    return () => {
+      alive = false;
+    };
+  }, [rangeInput, sales, purchases]);
+  const range = useMemo(() => {
+    if (rangeInput.error) return { error: rangeInput.error };
+    const { from, to, daily } = rangeInput;
+    const crossesYear = from.getFullYear() !== to.getFullYear();
+    const rows = (rangeReport?.rows ?? []).map((r) => {
+      if (daily) {
+        const d = parseISO(r.key);
+        return { ...toRow(r, `${d.getDate()} ${d.toLocaleString('en-IN', { month: 'short' })}`), full: shortDate(d) };
+      }
+      const d = new Date(Number(r.key.slice(0, 4)), Number(r.key.slice(5, 7)) - 1, 1);
+      const month = d.toLocaleString('en-IN', { month: 'short' });
+      return { ...toRow(r, crossesYear ? `${month} '${String(d.getFullYear()).slice(2)}` : month), full: d.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) };
+    });
+    const totals = sumOf(rows);
     return { rows, daily, totals, text: `${shortDate(from)} - ${shortDate(to)}` };
-  }, [rangePreset, customFrom, customTo, sales, purchases]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rangeInput, rangeReport]);
 
-  if (loading) {
+  if (loading || (!reports && !reportError)) {
     return (
       <>
         <PageHeader title="Overview" subtitle="Last 12 months" />
@@ -220,40 +187,55 @@ export default function Overview() {
       </>
     );
   }
-  const profit = data.totalProfit;
-  const periodSeries = period === 'monthly' ? data.months : data.years;
+  const profit = yearTotals.profit;
+  const periodSeries = period === 'monthly' ? months : years;
   const periodTotals = periodSeries.reduce(
     (t, m) => ({ sales: t.sales + m.sales, purchases: t.purchases + m.purchases, profit: t.profit + m.profit }),
     { sales: 0, purchases: 0, profit: 0 },
   );
-  const profitSeries = data.months.map((m) => m.profit);
+  const profitSeries = months.map((m) => m.profit);
   const sellerName = (name) => name;
-  const customerName = (id) => customers.find((c) => c.id === id)?.name ?? 'Walk-in';
+  const customerName = (s) => s.customerName ?? customers.find((c) => c.id === s.customerId)?.name ?? 'Walk-in';
+  // Delivery charges are kept apart from sales and profit.
+  const delivery = { total: Number(reports?.m.totals.delivery ?? 0), count: reports?.m.totals.deliveries ?? 0 };
   return (
     <>
       <PageHeader title="Overview" subtitle="Business performance over the last 12 months" />
+      {reportError && <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">Could not load the totals: {reportError}</p>}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi
           label="Total sales"
-          value={formatINR(data.totalSales)}
+          value={formatINR(yearTotals.sales)}
           icon={IndianRupee}
           tone="bg-indigo-50 text-indigo-600"
-          footer={<Trend value={trend(data.months.map((m) => m.sales))} />}
+          footer={<Trend value={trend(months.map((m) => m.sales))} />}
         />
         <Kpi
           label="Total purchases"
-          value={formatINR(data.totalPurchases)}
+          value={formatINR(yearTotals.purchases)}
           icon={Truck}
           tone="bg-orange-50 text-orange-600"
-          footer={<Trend value={trend(data.months.map((m) => m.purchases))} goodWhenUp={false} />}
+          footer={<Trend value={trend(months.map((m) => m.purchases))} goodWhenUp={false} />}
         />
         <Kpi
-          label="Profit (sales - purchases)"
+          label={profit >= 0 ? 'Profit (sales - purchases)' : 'Loss (sales - purchases)'}
           value={formatINR(profit)}
-          icon={TrendingUp}
-          tone="bg-emerald-50 text-emerald-600"
+          icon={profit >= 0 ? TrendingUp : TrendingDown}
+          tone={profit >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}
+          valueClass={profit >= 0 ? 'text-emerald-600' : 'text-red-600'}
           footer={<Trend value={trend(profitSeries)} />}
+        />
+        <Kpi
+          label="Delivery pays"
+          value={formatINR(delivery.total)}
+          icon={Bike}
+          tone="bg-sky-50 text-sky-600"
+          footer={
+            <span className="text-xs text-slate-400">
+              {delivery.count} home {delivery.count === 1 ? 'delivery' : 'deliveries'} - not counted in sales or profit
+            </span>
+          }
         />
       </div>
 
@@ -367,7 +349,7 @@ export default function Overview() {
                 <li key={s.id} className="flex items-center justify-between gap-3 px-5 py-3">
                   <div className="min-w-0">
                     <Link to={`/sales/${s.id}`} className="block truncate text-sm font-medium text-slate-900 hover:text-indigo-600">
-                      {customerName(s.customerId)}
+                      {customerName(s)}
                     </Link>
                     <p className="text-xs text-slate-500">
                       {s.invoiceNo} - {formatDate(s.date)}

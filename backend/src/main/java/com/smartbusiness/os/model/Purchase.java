@@ -5,12 +5,14 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
+import org.hibernate.annotations.BatchSize;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -22,8 +24,8 @@ import java.util.List;
 @Table(name = "purchases")
 public class Purchase extends BaseEntity {
   @NotNull @Column(name = "purchase_date") private LocalDate date;
-  @NotBlank private String supplier;
-  @NotBlank @Column(name = "invoice_no") private String invoiceNo;
+  @NotBlank @Size(max = 200) private String supplier;
+  @NotBlank @Size(max = 80) @Column(name = "invoice_no") private String invoiceNo;
   @NotNull @DecimalMin("0") @DecimalMax("100") @Column(name = "tax_rate") private BigDecimal taxRate = BigDecimal.ZERO;
   private BigDecimal subtotal = BigDecimal.ZERO;
   private BigDecimal tax = BigDecimal.ZERO;
@@ -31,7 +33,9 @@ public class Purchase extends BaseEntity {
 
   @Valid
   @NotEmpty
+  // Items of up to 100 rows load in one extra query (not one query per row), also for paged lists.
   @ElementCollection(fetch = FetchType.EAGER)
+  @BatchSize(size = 100)
   @CollectionTable(name = "purchase_items", joinColumns = @JoinColumn(name = "purchase_id"))
   private List<PurchaseItem> items = new ArrayList<>();
 

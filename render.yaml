@@ -1,0 +1,20 @@
+# Render Blueprint: New > Blueprint > pick this repo. Fill the secret values in the Render dashboard.
+services:
+  - type: web
+    name: smart-business-os-api
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: DB_URL
+        sync: false
+      - key: DB_USERNAME
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false

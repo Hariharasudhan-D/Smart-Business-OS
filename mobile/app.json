@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "Geethu's Corner",
+    "slug": "geethus-corner-shop",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.geethuscorner.shop",
+      "infoPlist": {
+        "NSContactsUsageDescription": "Geethu's Corner uses your contacts to fill in a customer's name and phone number when you make an order."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#FDE3EB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.geethuscorner.shop",
+      "permissions": [
+        "READ_CONTACTS",
+        "SCHEDULE_EXACT_ALARM",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "name": "Geethu's Corner"
+    },
+    "backgroundColor": "#FFF7F1",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF7F1"
+    },
+    "plugins": [
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Geethu's Corner uses your contacts to fill in a customer's name and phone number when you make an order."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#2563EB"
+        }
+      ],
+      "expo-font",
+      "expo-secure-store"
+    ]
+  }
+}

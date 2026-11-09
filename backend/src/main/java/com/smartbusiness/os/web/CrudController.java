@@ -63,8 +63,7 @@ public abstract class CrudController<T extends BaseEntity> {
   @DeleteMapping("/{id}")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void delete(@PathVariable UUID id) {
-    find(id);
-    repo.deleteById(id);
+    repo.delete(find(id)); // deleteById would look the row up a second time
   }
 
   private T find(UUID id) {

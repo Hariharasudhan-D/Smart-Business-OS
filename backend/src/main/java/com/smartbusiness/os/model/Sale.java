@@ -8,6 +8,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
+import org.hibernate.annotations.BatchSize;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import jakarta.validation.Valid;
@@ -22,12 +23,13 @@ import java.util.UUID;
 @Entity
 @Table(name = "sales")
 public class Sale extends BaseEntity {
+  public enum DeliveryType { PICKUP, DELIVERY }
+
   public enum PaymentMode {
     Cash,
     UPI,
     Card,
-    @JsonProperty("Bank Transfer") BankTransfer,
-    Credit
+    @JsonProperty("Bank Transfer") BankTransfer
   }
 
   @Column(name = "invoice_no") private String invoiceNo;
@@ -37,10 +39,16 @@ public class Sale extends BaseEntity {
   private BigDecimal discount = BigDecimal.ZERO;
   private BigDecimal total = BigDecimal.ZERO;
   @NotNull @Enumerated(EnumType.STRING) @Column(name = "payment_mode") private PaymentMode paymentMode;
+  @Enumerated(EnumType.STRING) @Column(name = "delivery_type") private DeliveryType deliveryType = DeliveryType.PICKUP;
+  @jakarta.validation.constraints.DecimalMin("0") @Column(name = "delivery_charge") private BigDecimal deliveryCharge = BigDecimal.ZERO;
+  /** Day the sale counts as money received (the order day, never later than today). Set by the server only. */
+  @JsonProperty(access = JsonProperty.Access.READ_ONLY) @Column(name = "paid_on") private LocalDate paidOn;
 
   @Valid
   @NotEmpty
+  // Items of up to 100 rows load in one extra query (not one query per row), also for paged lists.
   @ElementCollection(fetch = FetchType.EAGER)
+  @BatchSize(size = 100)
   @CollectionTable(name = "sale_items", joinColumns = @JoinColumn(name = "sale_id"))
   private List<SaleItem> items = new ArrayList<>();
 
@@ -58,6 +66,12 @@ public class Sale extends BaseEntity {
   public void setTotal(BigDecimal total) { this.total = total; }
   public PaymentMode getPaymentMode() { return paymentMode; }
   public void setPaymentMode(PaymentMode paymentMode) { this.paymentMode = paymentMode; }
+  public DeliveryType getDeliveryType() { return deliveryType; }
+  public void setDeliveryType(DeliveryType deliveryType) { this.deliveryType = deliveryType; }
+  public BigDecimal getDeliveryCharge() { return deliveryCharge; }
+  public void setDeliveryCharge(BigDecimal deliveryCharge) { this.deliveryCharge = deliveryCharge; }
+  public LocalDate getPaidOn() { return paidOn; }
+  public void setPaidOn(LocalDate paidOn) { this.paidOn = paidOn; }
   public List<SaleItem> getItems() { return items; }
   public void setItems(List<SaleItem> items) { this.items = items; }
 }

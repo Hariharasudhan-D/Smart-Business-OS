@@ -6,7 +6,8 @@ export const purchaseTotals = (items, taxRate) => {
   return { subtotal, tax, total: round2(subtotal + tax) };
 };
 export const saleLineGross = (i) => round2(i.qty * i.price);
-export const saleLineTotal = (i) => round2(i.qty * i.price * (1 - i.discount / 100));
+// A typed line amount (from the shop app) replaces qty x price.
+export const saleLineTotal = (i) => (i.amount != null ? round2(i.amount) : round2(i.qty * i.price * (1 - (i.discount ?? 0) / 100)));
 export const saleTotals = (items) => {
   const subtotal = round2(items.reduce((s, i) => s + saleLineGross(i), 0));
   const total = round2(items.reduce((s, i) => s + saleLineTotal(i), 0));

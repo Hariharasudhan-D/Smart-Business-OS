@@ -4,32 +4,41 @@ import { purchasesApi } from '../api/purchases';
 import { customersApi } from '../api/customers';
 import { sellersApi } from '../api/sellers';
 import { salesApi } from '../api/sales';
+import { websiteSalesApi } from '../api/websiteSales';
 
 const DataContext = createContext(null);
 
 export function DataProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  const [slow, setSlow] = useState(false);
   const [toast, setToast] = useState('');
   const [products, setProducts] = useState([]);
   const [purchases, setPurchases] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [sales, setSales] = useState([]);
   const [sellers, setSellers] = useState([]);
+  const [websiteSales, setWebsiteSales] = useState([]);
 
   const load = useCallback(() => {
     setLoading(true);
+    const slowTimer = setTimeout(() => setSlow(true), 5000);
     setLoadError('');
-    return Promise.all([productsApi.list(), purchasesApi.list(), customersApi.list(), salesApi.list(), sellersApi.list()])
-      .then(([pr, pu, cu, sa, se]) => {
+    return Promise.all([productsApi.list(), purchasesApi.list(), customersApi.list(), salesApi.list(), sellersApi.list(), websiteSalesApi.list()])
+      .then(([pr, pu, cu, sa, se, ws]) => {
         setProducts(pr);
         setPurchases(pu);
         setCustomers(cu);
         setSales(sa);
         setSellers(se);
+        setWebsiteSales(ws);
       })
       .catch((err) => setLoadError(err.message))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(slowTimer);
+        setSlow(false);
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -41,6 +50,12 @@ export function DataProvider({ children }) {
     const timer = setTimeout(() => setToast(''), 6000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // OS sales plus delivered website orders (source: 'website', read-only), newest first.
+  const allSales = useMemo(
+    () => [...sales, ...websiteSales].sort((x, y) => (x.date < y.date ? 1 : x.date > y.date ? -1 : 0)),
+    [sales, websiteSales],
+  );
 
   const value = useMemo(() => {
     // Shows the server's message as a toast and rethrows so the calling form can stay open.
@@ -60,7 +75,7 @@ export function DataProvider({ children }) {
       products,
       purchases,
       customers,
-      sales,
+      sales: allSales,
       sellers,
       addSeller: guard(async (s) => {
         const created = await sellersApi.create(s);
@@ -119,7 +134,7 @@ export function DataProvider({ children }) {
         setSales((prev) => prev.filter((x) => x.id !== id));
       }),
     };
-  }, [loading, products, purchases, customers, sales, sellers]);
+  }, [loading, products, purchases, customers, allSales, sellers]);
 
   if (loadError) {
     return (
@@ -135,6 +150,11 @@ export function DataProvider({ children }) {
 
   return (
     <DataContext.Provider value={value}>
+      {slow && (
+        <div role="status" className="fixed inset-x-0 top-0 z-[70] bg-amber-50 px-4 py-2 text-center text-sm font-medium text-amber-800 shadow-sm">
+          Waking up the server... the first visit after a while can take up to a minute.
+        </div>
+      )}
       {children}
       {toast && (
         <div

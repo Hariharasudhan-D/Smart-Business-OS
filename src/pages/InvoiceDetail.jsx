@@ -21,7 +21,7 @@ export default function InvoiceDetail() {
     );
   }
   const customer = customers.find((c) => c.id === sale.customerId);
-  const productName = (pid) => products.find((p) => p.id === pid)?.name ?? 'Unknown product';
+  const itemName = (i) => i.name ?? products.find((p) => p.id === i.productId)?.name ?? 'Unknown product';
   return (
     <div className="mx-auto max-w-3xl">
       <div className="no-print mb-4 flex items-center justify-between">
@@ -50,7 +50,7 @@ export default function InvoiceDetail() {
         <div className="grid grid-cols-1 gap-4 py-6 sm:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Billed to</p>
-            <p className="mt-1 font-medium text-slate-900">{customer?.name ?? 'Walk-in customer'}</p>
+            <p className="mt-1 font-medium text-slate-900">{sale.customerName ?? customer?.name ?? 'Walk-in customer'}</p>
             {customer && (
               <>
                 <p className="text-sm text-slate-500">{customer.address}</p>
@@ -80,8 +80,11 @@ export default function InvoiceDetail() {
               {sale.items.map((i, idx) => (
                 <tr key={idx}>
                   <td className="px-3 py-2 text-slate-400">{idx + 1}</td>
-                  <td className="px-3 py-2 font-medium text-slate-900">{productName(i.productId)}</td>
-                  <td className="px-3 py-2 text-right">{i.qty}</td>
+                  <td className="px-3 py-2 font-medium text-slate-900">{itemName(i)}</td>
+                  <td className="px-3 py-2 text-right">
+                    {i.qty}
+                    {i.unit === 'kg' ? ' kg' : ''}
+                  </td>
                   <td className="px-3 py-2 text-right">{formatINR2(i.price)}</td>
                   <td className="px-3 py-2 text-right">{i.discount}%</td>
                   <td className="px-3 py-2 text-right">{formatINR2(saleLineTotal(i))}</td>
@@ -104,6 +107,18 @@ export default function InvoiceDetail() {
             <span>Total</span>
             <span>{formatINR2(sale.total)}</span>
           </div>
+          {Number(sale.deliveryCharge) > 0 && (
+            <>
+              <div className="flex justify-between text-slate-600">
+                <span>Home delivery charge</span>
+                <span>+ {formatINR2(sale.deliveryCharge)}</span>
+              </div>
+              <div className="flex justify-between border-t border-slate-200 pt-2 font-semibold text-slate-900">
+                <span>To pay</span>
+                <span>{formatINR2(Number(sale.total) + Number(sale.deliveryCharge))}</span>
+              </div>
+            </>
+          )}
           <p className="text-right text-xs text-slate-400">Prices inclusive of GST</p>
         </div>
 

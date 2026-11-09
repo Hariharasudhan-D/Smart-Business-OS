@@ -1,7 +1,9 @@
+-- Smart Business OS tables. They live in their own schema ("os", created by Flyway),
+-- next to the website's tables in "public", which the OS never changes.
+
 create table products (
   id            uuid primary key,
   name          varchar(200)  not null,
-  sku           varchar(60)   not null unique,
   cost_price    numeric(12,2) not null,
   selling_price numeric(12,2) not null,
   qty           integer       not null default 0,
@@ -28,20 +30,19 @@ create table customers (
   phone      varchar(40)  not null default '',
   email      varchar(200) not null default '',
   address    varchar(500) not null default '',
-  type       varchar(20)  not null,
   created_at timestamp    not null
 );
 
 create table purchases (
-  id         uuid primary key,
-  purchase_date date       not null,
-  supplier   varchar(200)  not null,
-  invoice_no varchar(80)   not null,
-  tax_rate   numeric(5,2)  not null default 0,
-  subtotal   numeric(12,2) not null,
-  tax        numeric(12,2) not null,
-  total      numeric(12,2) not null,
-  created_at timestamp     not null
+  id            uuid primary key,
+  purchase_date date          not null,
+  supplier      varchar(200)  not null,
+  invoice_no    varchar(80)   not null,
+  tax_rate      numeric(5,2)  not null default 0,
+  subtotal      numeric(12,2) not null,
+  tax           numeric(12,2) not null,
+  total         numeric(12,2) not null,
+  created_at    timestamp     not null
 );
 
 create table purchase_items (

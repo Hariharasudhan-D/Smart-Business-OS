@@ -5,23 +5,30 @@
 - **Database**: Supabase Postgres, schema created by Flyway.
 
 ```
-browser  ->  Vite dev server (:5173)  --/api proxy-->  Spring Boot (:8080)  --JDBC-->  Supabase Postgres
+browser  ->  Vite dev server (:5173)  --/api proxy-->  Spring Boot (:8080)  --JDBC-->  Supabase Postgres (schema os + website users)
 ```
 
-There is no login yet: anyone who can reach the backend can read and change the data. Add authentication before exposing it publicly.
+## Sign in
+
+The OS has no accounts of its own. It signs in against the website's `users` table (`public.users` in the Geethu's Corner Supabase project): the same email and password, and the user's `role` must be `ADMIN`. To give someone access, set their role to `ADMIN` in Supabase; to remove access, set it back to `CUSTOMER`. Accounts are created and passwords changed on the website only. The phone app will use the same login.
+
+- Every `/api` call needs the token, and the token's user must still be an admin in that table at that moment. Only `POST /api/auth/login` is public.
+- The backend refuses to start without `JWT_SECRET` (32+ random characters; the generator command is in `backend/.env.example`), so the API can never run open by accident.
+- A sign-in lasts `AUTH_TOKEN_DAYS` days (default 7) and survives closing the browser. **Sign out** ends it earlier.
+- 5 wrong passwords from one address block that address for 15 minutes.
 
 ## Run it
 
-### 1. Database credentials
+### 1. Settings
 
-Supabase dashboard > Connect > **Session pooler** (port 5432). Then:
+Supabase dashboard > Connect > **Session pooler** (port 5432), using the Geethu's Corner project. Then:
 
 ```bash
 cd backend
-cp .env.example .env      # set DB_PASSWORD (and DB_USER / DB_HOST if they differ)
+cp .env.example .env      # fill in DB_URL, DB_USERNAME, DB_PASSWORD and JWT_SECRET
 ```
 
-`.env` is git-ignored. Use plain `KEY=value` lines with no quotes. A password with special characters needs no URL-encoding here because the host, user and password are separate settings.
+`.env` is git-ignored. Use plain `KEY=value` lines with no quotes. No admin login goes in `.env`.
 
 ### 2. Backend
 
@@ -42,16 +49,20 @@ npm run build                 # production build into dist/
 
 In development Vite forwards `/api` to `http://localhost:8080`. For a deployed frontend set `VITE_API_URL` (see `.env.example`) and `CORS_ORIGINS` in the backend.
 
-### Which Supabase connection string?
+### The database
 
-| Port | Mode | Use it for |
-| --- | --- | --- |
-| 5432 | session pooler | **This app** (migrations and queries) |
-| 6543 | transaction pooler | Works for queries (`prepareThreshold=0` is already set) but Flyway migrations should use 5432 |
+The OS and the website share one Supabase database. The OS keeps its own tables in a separate schema called `os` (created on the first start), so it never touches the website's tables in `public`. The only website table it reads is `users`, and it never writes to it. Use the **session pooler** (port 5432) as `DB_URL=jdbc:postgresql://<host>:5432/postgres`; Flyway migrations need session features, so avoid the transaction pooler (6543).
 
-The `postgresql://...?pgbouncer=true` form from Prisma-style `.env` files is not a JDBC URL, so the backend takes `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` instead.
+## Deploy the backend to Render
 
-## Structure
+1. Push this repo to GitHub.
+2. In Render: **New > Blueprint**, pick the repo. `render.yaml` creates the `smart-business-os-api` web service (Docker, `backend/` folder, health check `/api/health`).
+3. Fill the secret values Render asks for: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, and `CORS_ORIGINS` (the deployed OS website address).
+4. Use the service address as `VITE_API_URL` (OS website) and `EXPO_PUBLIC_API_URL` (`mobile/eas.json`), both ending in `/api`.
+
+The free plan sleeps after ~15 minutes without traffic and needs up to a minute to wake. The OS website and the app handle this: they ping `/api/health` early, retry while the server starts (502/503/504) for about 90 seconds, and show a "waking up" message instead of an error. Saving a sale is only retried when the server never received it, so a sale is never saved twice.
+
+
 
 ```
 src/                              frontend
