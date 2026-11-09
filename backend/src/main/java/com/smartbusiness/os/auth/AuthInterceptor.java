@@ -53,7 +53,7 @@ public class AuthInterceptor implements HandlerInterceptor {
 
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
-    if (HttpMethod.OPTIONS.matches(request.getMethod()) || request.getRequestURI().equals("/api/auth/login") || request.getRequestURI().equals("/api/health")) {
+    if (HttpMethod.OPTIONS.matches(request.getMethod()) || request.getRequestURI().equals("/api/auth/login") || request.getRequestURI().equals("/api/health") || request.getRequestURI().equals("/api/health/db")) {
       return true;
     }
     String header = request.getHeader("Authorization");

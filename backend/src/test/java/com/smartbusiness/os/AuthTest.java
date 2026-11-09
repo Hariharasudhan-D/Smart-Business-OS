@@ -44,6 +44,8 @@ class AuthTest {
   @Test
   void healthCheckIsPublic() throws Exception {
     mvc.perform(get("/api/health")).andExpect(status().isOk()).andExpect(jsonPath("$.status").value("ok"));
+    // the keep-awake ping also touches the database (keeps a free Supabase project active)
+    mvc.perform(get("/api/health/db")).andExpect(status().isOk()).andExpect(jsonPath("$.database").value("ok"));
   }
 
   @Test

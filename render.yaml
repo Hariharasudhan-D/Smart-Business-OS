@@ -6,6 +6,9 @@ services:
     rootDir: backend
     dockerfilePath: ./Dockerfile
     plan: free
+    # Same region as the Supabase database (ap-southeast-1): each database query stays inside Singapore.
+    # Render cannot move an existing service, so this only applies when the service is first created.
+    region: singapore
     healthCheckPath: /api/health
     envVars:
       - key: DB_URL
