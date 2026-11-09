@@ -15,7 +15,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FDE3EB",
+        "backgroundColor": "#F9A8D4",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -40,11 +40,6 @@
       "name": "Geethu's Corner"
     },
     "backgroundColor": "#FFF7F1",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#FFF7F1"
-    },
     "plugins": [
       [
         "expo-contacts",
@@ -62,7 +57,16 @@
         }
       ],
       "expo-font",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FDF2F8"
+        }
+      ]
     ],
     "runtimeVersion": {
       "policy": "appVersion"

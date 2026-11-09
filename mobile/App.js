@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Image, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -106,9 +106,7 @@ function Root() {
       <View style={styles.header}>
         <View style={styles.headerInner}>
           <View style={styles.brand}>
-            <View style={styles.logo}>
-              <Ionicons name="storefront-outline" size={18} color="#fff" />
-            </View>
+            <Image source={require('./assets/logo-mark.png')} style={styles.logo} accessibilityIgnoresInvertColors />
             <View style={{ flexShrink: 1 }}>
               <Text style={styles.brandText} numberOfLines={1}>
                 Geethu's Corner
@@ -182,7 +180,7 @@ const styles = StyleSheet.create({
   header: { backgroundColor: colors.card, borderBottomWidth: 1, borderBottomColor: colors.line },
   headerInner: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 10, width: '100%', maxWidth: 900, alignSelf: 'center' },
   brand: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  logo: { width: 34, height: 34, borderRadius: radius.md, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 36, height: 36, borderRadius: 9 },
   brandText: { fontSize: 15, fontWeight: '600', color: colors.brown },
   brandSub: { fontSize: 12, color: colors.muted },
   headerBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line },

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { signIn } from './api';
 import { errorText, useLang } from './i18n';
@@ -43,9 +43,7 @@ export default function LoginScreen({ onSignedIn }) {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.brand}>
-          <View style={styles.logo}>
-            <Ionicons name="storefront-outline" size={26} color="#fff" />
-          </View>
+          <Image source={require('../assets/logo-mark.png')} style={styles.logo} accessibilityIgnoresInvertColors />
           <Text style={styles.title}>Geethu's Corner</Text>
           <Text style={styles.os}>Smart Business OS</Text>
           <Text style={styles.subtitle}>{t.signInHint}</Text>
@@ -98,7 +96,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: colors.bg },
   scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, width: '100%', maxWidth: 460, alignSelf: 'center' },
   brand: { alignItems: 'center', marginBottom: 28, marginTop: 40 },
-  logo: { width: 52, height: 52, borderRadius: radius.lg, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
+  logo: { width: 72, height: 72, borderRadius: 18 },
   title: { marginTop: 14, fontSize: 22, fontWeight: '600', color: colors.brown },
   os: { fontSize: 13, color: colors.primary, fontWeight: '500', marginTop: 2 },
   subtitle: { marginTop: 8, fontSize: 14, color: colors.muted, textAlign: 'center', lineHeight: 22 },
