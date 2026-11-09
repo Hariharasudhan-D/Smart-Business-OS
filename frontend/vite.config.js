@@ -50,7 +50,6 @@ export default defineConfig(({ mode }) => {
           configure: (proxy) => proxy.on('proxyReq', (req) => req.removeHeader('origin')),
         },
       },
-      watch: { ignored: ['**/backend/**'] },
     },
   };
 });

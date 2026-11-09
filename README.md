@@ -1,8 +1,12 @@
 # Smart Business OS - Admin Dashboard
 
-- **Frontend**: React + Vite (JavaScript), Tailwind CSS, React Router, Recharts, lucide-react.
-- **Backend**: Java 17+ / Spring Boot 3 (`backend/`), REST API under `/api`.
-- **Database**: Supabase Postgres, schema created by Flyway.
+| Folder | What it is | Deployed to |
+| --- | --- | --- |
+| `frontend/` | OS admin website: React + Vite, Tailwind CSS, React Router, Recharts | Vercel |
+| `backend/` | REST API under `/api`: Java 17+ / Spring Boot 3 | Render (Docker) |
+| `mobile/` | Phone app for the shop: Expo / React Native | Android APK via EAS, updates via EAS Update |
+
+- **Database**: Supabase Postgres, schema `os` created by Flyway.
 
 ```
 browser  ->  Vite dev server (:5173)  --/api proxy-->  Spring Boot (:8080)  --JDBC-->  Supabase Postgres (schema os + website users)
@@ -14,8 +18,8 @@ The OS has no accounts of its own. It signs in against the website's `users` tab
 
 - Every `/api` call needs the token, and the token's user must still be an admin in that table at that moment. Only `POST /api/auth/login` is public.
 - The backend refuses to start without `JWT_SECRET` (32+ random characters; the generator command is in `backend/.env.example`), so the API can never run open by accident.
-- A sign-in lasts `AUTH_TOKEN_DAYS` days (default 7) and survives closing the browser. **Sign out** ends it earlier.
-- 5 wrong passwords from one address block that address for 15 minutes.
+- A web sign-in lasts `AUTH_TOKEN_DAYS` days (default 7); the phone app's lasts `AUTH_APP_TOKEN_DAYS` (default 90) and renews itself while used. **Sign out** ends the token on the server at once.
+- 5 wrong passwords from one address, or 10 for one account from any address, block sign-in for 15 minutes.
 
 ## Run it
 
@@ -39,15 +43,24 @@ cd backend
 
 On first start Flyway creates the tables (`backend/src/main/resources/db/migration/V1__init.sql`). Check it with http://localhost:8080/api/products (an empty list `[]` is correct).
 
-### 3. Frontend
+### 3. Frontend (OS website)
 
 ```bash
+cd frontend
 npm install
 npm run dev                   # http://localhost:5173
-npm run build                 # production build into dist/
+npm run build                 # production build into frontend/dist/
 ```
 
-In development Vite forwards `/api` to `http://localhost:8080`. For a deployed frontend set `VITE_API_URL` (see `.env.example`) and `CORS_ORIGINS` in the backend.
+In development Vite forwards `/api` to `http://localhost:8080`. For a deployed frontend set `VITE_API_URL` (see `frontend/.env.example`) and `CORS_ORIGINS` in the backend.
+
+### 4. Phone app
+
+```bash
+cd mobile
+npm install
+npx expo start --web --port 8081   # preview in a browser; contacts and alarms need the installed app
+```
 
 ### The database
 
@@ -58,18 +71,29 @@ The OS and the website share one Supabase database. The OS keeps its own tables 
 1. Push this repo to GitHub.
 2. In Render: **New > Blueprint**, pick the repo. `render.yaml` creates the `smart-business-os-api` web service (Docker, `backend/` folder, health check `/api/health`).
 3. Fill the secret values Render asks for: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, and `CORS_ORIGINS` (the deployed OS website address).
-4. Use the service address as `VITE_API_URL` (OS website) and `EXPO_PUBLIC_API_URL` (`mobile/eas.json`), both ending in `/api`.
+4. Use the service address, ending in `/api`, as `VITE_API_URL` (Vercel) and as `PRODUCTION_API_URL` in `mobile/src/config.js`.
+5. Keep it awake: ping `https://<service>.onrender.com/api/health/db` every 10 minutes (e.g. cron-job.org). This also keeps a free Supabase project from pausing. Render's own health check stays on `/api/health`.
+
+## Deploy the OS website to Vercel
+
+1. Vercel: **Add New > Project**, import the repo.
+2. **Root Directory: `frontend`** (Framework: Vite; build settings come from `frontend/vercel.json`).
+3. Environment variable `VITE_API_URL` = `https://<service>.onrender.com/api`, then **Deploy**.
+4. Put the Vercel address in Render's `CORS_ORIGINS`.
 
 The free plan sleeps after ~15 minutes without traffic and needs up to a minute to wake. The OS website and the app handle this: they ping `/api/health` early, retry while the server starts (502/503/504) for about 90 seconds, and show a "waking up" message instead of an error. Saving a sale is only retried when the server never received it, so a sale is never saved twice.
 
 
 
 ```
-src/                              frontend
-  api/client.js                   fetch wrapper (base URL, JSON, error messages)
-  api/<entity>.js                 products, purchases, customers, sales, sellers: one line each
-  context/DataContext.jsx         loads everything, holds it in state, shows server errors as a toast
-  pages/ components/ utils/       UI
+frontend/                         OS website (Vercel)
+  src/api/client.js               fetch wrapper (base URL, JSON, error messages)
+  src/api/<entity>.js             products, purchases, customers, sales, sellers: one line each
+  src/context/DataContext.jsx     loads the lists, holds them in state, shows server errors as a toast
+  src/hooks/useServerPage.js      one server-side page of sales / purchases
+  src/pages/ components/ utils/   UI
+  vercel.json                     single-page routing and security headers
+mobile/                           phone app (Expo); server address in src/config.js
 backend/
   src/main/java/com/smartbusiness/os/
     model/                        JPA entities (Product, Seller, Customer, Purchase, Sale + line items)
