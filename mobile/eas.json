@@ -6,7 +6,9 @@
     "preview": {
       "distribution": "internal",
       "channel": "production",
-      "android": { "buildType": "apk" }
+      "android": {
+        "buildType": "apk"
+      }
     }
   }
 }

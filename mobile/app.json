@@ -26,6 +26,9 @@
         "SCHEDULE_EXACT_ALARM",
         "POST_NOTIFICATIONS",
         "VIBRATE"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "web": {
@@ -56,6 +59,15 @@
     ],
     "runtimeVersion": {
       "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5eac2990-ea7e-405f-8376-7f46d541525f"
+      }
+    },
+    "owner": "hariharasudhan05",
+    "updates": {
+      "url": "https://u.expo.dev/5eac2990-ea7e-405f-8376-7f46d541525f"
     }
   }
 }
