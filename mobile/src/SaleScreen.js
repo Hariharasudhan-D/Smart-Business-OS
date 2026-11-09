@@ -117,16 +117,18 @@ export default function SaleScreen({ active = true, onSaved, onGoHome }) {
 
   // Names from the phone's own contacts. Permission is asked when the app opens (App.js);
   // here they are read straight away, and asked again on the search box only if that was skipped.
-  const ensureContacts = async (ask = true) => {
-    if (contactsStatus === 'granted' || contactsStatus === 'unsupported') return;
-    const res = await loadContacts({ ask });
+  const ensureContacts = async (ask = true, fresh = false) => {
+    if (contactsStatus === 'unsupported') return;
+    if (contactsStatus === 'granted' && !fresh) return;
+    const res = await loadContacts({ ask, fresh });
     setContactsStatus(res.status);
-    setPhoneContacts(res.list);
+    if (res.list.length || res.status !== 'error') setPhoneContacts(res.list);
   };
+  // Read the phone's contacts each time New Sale is opened, so contacts saved since then show up.
   useEffect(() => {
-    ensureContacts(false);
+    if (active) ensureContacts(false, true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [active]);
   /** A contact whose name is exactly what was typed: its number is filled in when adding a new customer. */
   const exactContact = useMemo(() => phoneContacts.find((c) => same(c.name, customerQuery)), [phoneContacts, customerQuery]);
   // The phone's contacts come first. Picking one reuses the customer with that number, if there is one.
@@ -363,6 +365,14 @@ export default function SaleScreen({ active = true, onSaved, onGoHome }) {
                 <Suggestion key={c.id} title={c.name} subtitle={c.phone} icon="person-circle-outline" onPress={() => setCustomer(c)} />
               ))}
               {contactsStatus === 'denied' && !!customerQuery.trim() && <Text style={[styles.small, { marginTop: 8 }]}>{t.contactsDenied}</Text>}
+              {contactsStatus === 'error' && !!customerQuery.trim() && (
+                <Pressable onPress={() => ensureContacts(true, true)} accessibilityRole="button">
+                  <Text style={[styles.small, { marginTop: 8, color: colors.red }]}>{t.contactsError}</Text>
+                </Pressable>
+              )}
+              {contactsStatus === 'granted' && phoneContacts.length === 0 && !!customerQuery.trim() && (
+                <Text style={[styles.small, { marginTop: 8 }]}>{t.contactsEmpty}</Text>
+              )}
               {contactsStatus === 'unsupported' && !!customerQuery.trim() && <Text style={[styles.small, { marginTop: 8 }]}>{t.contactsAppOnly}</Text>}
               {!!customerQuery.trim() && !exactCustomer && !addingCustomer && (
                 <Suggestion title={t.addNewCustomer(customerQuery.trim())} icon="person-add" accent onPress={() => { setNewPhone(exactContact?.phone || ''); setAddingCustomer(true); }} />

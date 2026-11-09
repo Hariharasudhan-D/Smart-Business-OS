@@ -19,14 +19,15 @@ let pending = null;
 
 /**
  * Returns the phone's contacts that have a phone number:
- * { status: 'granted' | 'denied' | 'unsupported', list: [{ id, name, phone }] }
+ * { status: 'granted' | 'denied' | 'idle' | 'error' | 'unsupported', list: [{ id, name, phone, phones }] }
  * With ask = true the permission popup is shown if it hasn't been granted yet;
  * with ask = false it only reads contacts when permission was already given.
+ * fresh = true reads the phone again (picks up contacts added since the app opened).
  */
-export function loadContacts({ ask = true } = {}) {
+export function loadContacts({ ask = true, fresh = false } = {}) {
   if (!contactsSupported) return Promise.resolve({ status: 'unsupported', list: [] });
-  if (cache) return Promise.resolve({ status: 'granted', list: cache });
-  if (pending) return pending; // the launch-time request is still open: share it instead of asking twice
+  if (cache && !fresh) return Promise.resolve({ status: 'granted', list: cache });
+  if (pending) return pending; // a read is already running: share it instead of asking twice
   const run = readContacts(ask);
   pending = run;
   run.finally(() => {
@@ -36,21 +37,39 @@ export function loadContacts({ ask = true } = {}) {
 }
 
 async function readContacts(ask) {
+  let perm;
   try {
-    let perm = await Contacts.getPermissionsAsync();
+    perm = await Contacts.getPermissionsAsync();
     if (perm.status !== 'granted' && ask) perm = await Contacts.requestPermissionsAsync();
-    if (perm.status !== 'granted') return { status: ask ? 'denied' : 'idle', list: [] };
-    const { data } = await Contacts.getContactsAsync({ fields: [Contacts.Fields.PhoneNumbers], sort: Contacts.SortTypes.FirstName });
-    cache = (data || [])
-      .filter((c) => c.name && c.phoneNumbers?.length)
+  } catch {
+    return { status: 'error', list: cache ?? [] };
+  }
+  if (perm.status !== 'granted') return { status: ask ? 'denied' : 'idle', list: [] };
+  try {
+    // expo-contacts 58: the old getContactsAsync() always throws; contacts are read with the new
+    // Contact.getAllDetails(), which returns plain objects with only the fields asked for.
+    const rows = await Contacts.Contact.getAllDetails(
+      [Contacts.ContactField.FULL_NAME, Contacts.ContactField.GIVEN_NAME, Contacts.ContactField.FAMILY_NAME, Contacts.ContactField.PHONES],
+      { sortOrder: Contacts.ContactsSortOrder.GivenName },
+    );
+    const seen = new Set();
+    cache = (rows || [])
       .map((c) => {
-        const primary = c.phoneNumbers.find((p) => p.isPrimary) || c.phoneNumbers[0];
-        return { id: c.id, name: c.name.trim(), phone: cleanPhone(primary.number) };
+        const name = (c.fullName || [c.givenName, c.familyName].filter(Boolean).join(' ')).trim();
+        const phones = [...new Set((c.phones || []).map((p) => cleanPhone(p.number)).filter((n) => n.replace(/\D/g, '').length >= 5))];
+        return { id: String(c.id), name, phone: phones[0] || '', phones };
       })
-      .filter((c) => c.phone);
+      .filter((c) => c.name && c.phone)
+      // the same person saved twice (e.g. phone + Google account) shows once
+      .filter((c) => {
+        const key = `${c.name.toLowerCase()}|${phoneKey(c.phone)}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
     return { status: 'granted', list: cache };
   } catch {
-    return { status: 'denied', list: [] };
+    return { status: 'error', list: cache ?? [] };
   }
 }
 
@@ -63,7 +82,7 @@ export function searchContacts(list, query, limit = 6) {
   const rest = [];
   for (const c of list) {
     const name = c.name.toLowerCase();
-    const hit = name.includes(q) || (digits.length >= 3 && phoneKey(c.phone).includes(digits));
+    const hit = name.includes(q) || (digits.length >= 3 && (c.phones || [c.phone]).some((p) => phoneKey(p).includes(digits)));
     if (!hit) continue;
     (name.startsWith(q) ? starts : rest).push(c);
     if (starts.length >= limit) break;

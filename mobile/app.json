@@ -2,7 +2,7 @@
   "expo": {
     "name": "Geethu's Corner",
     "slug": "geethus-corner-shop",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,11 +24,15 @@
       "permissions": [
         "READ_CONTACTS",
         "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
         "POST_NOTIFICATIONS",
         "VIBRATE"
       ],
       "blockedPermissions": [
-        "android.permission.WRITE_CONTACTS"
+        "android.permission.WRITE_CONTACTS",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
@@ -51,7 +55,10 @@
       [
         "expo-notifications",
         {
-          "color": "#2563EB"
+          "color": "#2563EB",
+          "sounds": [
+            "./assets/sounds/alarm.wav"
+          ]
         }
       ],
       "expo-font",

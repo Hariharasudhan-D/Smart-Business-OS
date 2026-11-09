@@ -4,25 +4,34 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 
 /**
- * Reminders that ring on this phone at a chosen time, like an alarm, with the shop's note as the text.
- * They stay in the app (and in the count on the Reminder button) until "Finish" is pressed,
- * either in the app or on the alarm notification itself.
+ * Reminders that ring on this phone like an alarm clock, with the shop's note as the text:
+ *  - at the exact minute (exact alarm, even when the phone is idle);
+ *  - a 30-second alarm tone on the phone's ALARM volume (assets/sounds/alarm.wav);
+ *  - if nobody presses Finish, it rings again every 5 minutes, for up to an hour.
+ * A reminder stays in the app (and in the count on the Reminder button) until "Finish" is pressed,
+ * in the app or on the alarm notification; Finish stops the ringing and cancels the repeats.
  */
 
 const KEY = 'reminders.v1';
-const CHANNEL = 'reminders';
+// Android never changes a channel after it is created, so the alarm sound needs a new channel id.
+const CHANNEL = 'reminder-alarm-v2';
+const OLD_CHANNELS = ['reminders'];
+const SOUND = 'alarm.wav';
 const CATEGORY = 'reminder';
 export const FINISH_ACTION = 'finish';
+export const REPEAT_EVERY_MIN = 5;
+export const MAX_RINGS = 12; // first ring + 11 repeats = rings for up to an hour
 
 /** Ringing reminders need the installed phone app; a browser cannot set alarms. */
 export const remindersSupported = Platform.OS === 'android' || Platform.OS === 'ios';
 
-let list = []; // [{ id, text, at (ms), notificationId }]
+let list = []; // [{ id, text, at (ms), notificationIds: [] }]
 let loaded = false;
 const listeners = new Set();
 
 const emit = () => listeners.forEach((fn) => fn(list));
 const save = () => AsyncStorage.setItem(KEY, JSON.stringify(list)).catch(() => {});
+const idsOf = (r) => r.notificationIds ?? (r.notificationId ? [r.notificationId] : []);
 
 async function ensureLoaded() {
   if (loaded) return;
@@ -37,7 +46,7 @@ async function ensureLoaded() {
 }
 
 let setupDone = null;
-/** Alarm-style channel (loud, shows on the lock screen) and the "Finish" button. Safe to call many times. */
+/** Alarm channel (alarm volume, 30-second tone, lock screen, through Do Not Disturb) and the Finish button. */
 export function setupReminders() {
   if (!remindersSupported) return Promise.resolve();
   if (setupDone) return setupDone;
@@ -53,15 +62,20 @@ export function setupReminders() {
     });
     if (Platform.OS === 'android') {
       await Notifications.setNotificationChannelAsync(CHANNEL, {
-        name: 'Reminders',
-        description: 'Shop reminders that ring like an alarm',
+        name: 'Reminder alarms',
+        description: 'Shop reminders that ring like an alarm clock',
         importance: Notifications.AndroidImportance.MAX,
-        sound: 'default',
-        vibrationPattern: [0, 600, 300, 600, 300, 600],
+        sound: SOUND,
+        vibrationPattern: [0, 800, 400, 800, 400, 800, 400, 800],
+        enableVibrate: true,
         lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
         bypassDnd: true,
-        audioAttributes: { usage: Notifications.AndroidAudioUsage.ALARM },
+        audioAttributes: {
+          usage: Notifications.AndroidAudioUsage.ALARM,
+          contentType: Notifications.AndroidAudioContentType.SONIFICATION,
+        },
       });
+      for (const old of OLD_CHANNELS) await Notifications.deleteNotificationChannelAsync(old).catch(() => {});
     }
     await Notifications.setNotificationCategoryAsync(CATEGORY, [
       { identifier: FINISH_ACTION, buttonTitle: 'Finish', options: { opensAppToForeground: true } },
@@ -78,7 +92,7 @@ async function ensurePermission() {
   return perm.granted ? 'granted' : 'denied';
 }
 
-/** True when Android allows ringing at the exact minute (Android 12+ asks for this in Settings). */
+/** True when Android allows ringing at the exact minute (USE_EXACT_ALARM grants this on Android 13+). */
 export async function exactAlarmsAllowed() {
   if (Platform.OS !== 'android') return true;
   try {
@@ -88,7 +102,7 @@ export async function exactAlarmsAllowed() {
   }
 }
 
-/** Opens the phone's "Alarms & reminders" setting for this app. */
+/** Opens the phone's "Alarms & reminders" setting for this app (only needed on Android 12). */
 export async function askExactAlarms() {
   if (Platform.OS !== 'android') return true;
   try {
@@ -98,47 +112,66 @@ export async function askExactAlarms() {
   }
 }
 
-/** Sets an alarm for `at` (a Date) with the note `text`. Throws { code: 'denied' | 'past' } when it cannot. */
+/**
+ * Sets an alarm for `at` (a Date) with the note `text`: it rings at `at` and again every 5 minutes
+ * until Finish (up to MAX_RINGS times). Throws { code: 'denied' | 'past' } when it cannot.
+ */
 export async function addReminder(text, at) {
   await ensureLoaded();
   if (at.getTime() <= Date.now()) throw Object.assign(new Error('past'), { code: 'past' });
   if ((await ensurePermission()) !== 'granted') throw Object.assign(new Error('denied'), { code: 'denied' });
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const exact = await exactAlarmsAllowed();
-  const notificationId = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: '⏰ Reminder',
-      body: text,
-      sound: 'default',
-      categoryIdentifier: CATEGORY,
-      data: { reminderId: id },
-      priority: Notifications.AndroidNotificationPriority.MAX,
-      sticky: true, // stays until Finish is pressed
-      autoDismiss: false,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DATE,
-      date: at,
-      channelId: CHANNEL,
-      ...(exact ? { delivery: 'alarmClock' } : {}),
-    },
-  });
-  list = [...list, { id, text, at: at.getTime(), notificationId }].sort((a, b) => a.at - b.at);
+  const notificationIds = [];
+  for (let ring = 0; ring < MAX_RINGS; ring++) {
+    const when = new Date(at.getTime() + ring * REPEAT_EVERY_MIN * 60_000);
+    notificationIds.push(
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: ring === 0 ? '⏰ Reminder' : `⏰ Reminder (ringing again, ${ring + 1}/${MAX_RINGS})`,
+          body: text,
+          sound: SOUND,
+          categoryIdentifier: CATEGORY,
+          data: { reminderId: id },
+          priority: Notifications.AndroidNotificationPriority.MAX,
+          sticky: true, // cannot be swiped away: press Finish (or open the app) to stop it
+          autoDismiss: false,
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: when,
+          channelId: CHANNEL,
+          ...(exact ? { delivery: 'alarmClock' } : {}),
+        },
+      }),
+    );
+  }
+  list = [...list, { id, text, at: at.getTime(), notificationIds }].sort((a, b) => a.at - b.at);
   await save();
   emit();
 }
 
-/** Removes a reminder: stops it ringing later and clears it from the notification tray. */
+/** Finish: stops the ringing now, cancels the remaining repeats and removes the reminder. */
 export async function finishReminder(id) {
   await ensureLoaded();
   const r = list.find((x) => x.id === id);
-  if (!r) return;
   list = list.filter((x) => x.id !== id);
   await save();
   emit();
   if (!remindersSupported) return;
-  await Notifications.cancelScheduledNotificationAsync(r.notificationId).catch(() => {});
-  await Notifications.dismissNotificationAsync(r.notificationId).catch(() => {});
+  for (const nid of r ? idsOf(r) : []) {
+    await Notifications.cancelScheduledNotificationAsync(nid).catch(() => {});
+    await Notifications.dismissNotificationAsync(nid).catch(() => {});
+  }
+  // Also clear any ring of this reminder still showing (dismissing it stops its sound).
+  try {
+    const shown = await Notifications.getPresentedNotificationsAsync();
+    for (const n of shown) {
+      if (n.request?.content?.data?.reminderId === id) await Notifications.dismissNotificationAsync(n.request.identifier).catch(() => {});
+    }
+  } catch {
+    // nothing showing
+  }
 }
 
 /** The active reminders, soonest first; the screen updates when one is added or finished. */

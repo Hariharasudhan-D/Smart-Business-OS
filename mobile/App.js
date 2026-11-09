@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Platform, Pressable, StyleSheet, Text, ToastAndroid, View } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
@@ -51,6 +51,21 @@ function Root() {
     setSignedOutHandler(() => setSession(null));
     return stopFinish;
   }, []);
+
+  // Android back button: one press only shows "Press back again to exit"; a second press within
+  // 2 seconds closes the app. (Open pop-ups still close with one press: they handle back themselves.)
+  const lastBack = useRef(0);
+  useEffect(() => {
+    if (Platform.OS !== 'android') return undefined;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      const now = Date.now();
+      if (now - lastBack.current < 2000) return false; // let Android close the app
+      lastBack.current = now;
+      ToastAndroid.show(t.backAgainToExit, ToastAndroid.SHORT);
+      return true; // handled: stay in the app
+    });
+    return () => sub.remove();
+  }, [t]);
 
   const confirmSignOut = useCallback(() => {
     const doIt = async () => {
