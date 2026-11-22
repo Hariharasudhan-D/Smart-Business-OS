@@ -4,6 +4,10 @@ A deliberately simple app for the shop: **Home** (today's sales, sales / purchas
 
 Built with Expo (React Native). It talks to the Smart Business OS backend (`../backend`).
 
+Current signed Android release: **1.1.0 (version code 2)**. Download it from
+https://smart-business-os.vercel.app/download after the website deployment completes.
+APK SHA-256: `DF39913C373813D5381F82D058B8991FBAF6AC82A9EF44C16A369D22E27151A6`.
+
 ## 1. Point the app at the backend
 
 Copy `.env.example` to `.env` and set the backend address:

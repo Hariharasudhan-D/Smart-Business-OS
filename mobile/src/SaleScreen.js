@@ -18,7 +18,7 @@ import { api, paths, peek } from './api';
 import { contactsSupported, loadContacts, phoneKey, searchContacts } from './contacts';
 import { addDays, isoDate, niceDate, rupees } from './format';
 import { errorText, useLang } from './i18n';
-import { colors, radius, shadow } from './theme';
+import { colors, radius } from './theme';
 import { BigButton, Card, Notice } from './ui';
 
 const WALK_IN = 'Walk-in';

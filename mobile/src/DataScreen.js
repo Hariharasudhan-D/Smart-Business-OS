@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { api, paths, peek } from './api';
@@ -52,7 +52,6 @@ function usePaged(pathFor, enabled, reloadKey) {
       .get(first)
       .then((r) => current.current === first && setList(toList(r)))
       .catch((err) => current.current === first && setError(err));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [first, enabled, reloadKey]);
 
   const loadMore = async () => {

@@ -5,7 +5,6 @@ import { colors, radius, shadow } from './theme';
 /** Asks yes/no and resolves true when the user confirms (works in the phone app and in the browser). */
 export function confirmAsk(title, message, confirmLabel, cancelLabel) {
   if (Platform.OS === 'web') {
-    // eslint-disable-next-line no-alert
     return Promise.resolve(window.confirm(`${title}
 
 ${message}`));

@@ -78,7 +78,6 @@ function Root() {
       setOpened({ home: true });
     };
     if (Platform.OS === 'web') {
-      // eslint-disable-next-line no-alert
       if (window.confirm(t.signOutAsk)) doIt();
     } else {
       Alert.alert(t.signOut, t.signOutAsk, [

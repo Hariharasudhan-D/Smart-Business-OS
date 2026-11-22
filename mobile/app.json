@@ -67,7 +67,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#FDF2F8"
         }
-      ]
+      ],
+      "expo-status-bar"
     ],
     "runtimeVersion": {
       "policy": "appVersion"
