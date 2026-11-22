@@ -6,7 +6,7 @@ Built with Expo (React Native). It talks to the Smart Business OS backend (`../b
 
 Current signed Android release: **1.1.0 (version code 2)**. Download it from
 https://smart-business-os.vercel.app/download after the website deployment completes.
-APK SHA-256: `DF39913C373813D5381F82D058B8991FBAF6AC82A9EF44C16A369D22E27151A6`.
+APK SHA-256: `5E7730C87FB701AE4D6C28209BB298E15A29A2BB588EBFC93D5B08EFC8D78A5C`.
 
 ## 1. Point the app at the backend
 
