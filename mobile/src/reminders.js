@@ -13,8 +13,9 @@ import * as Notifications from 'expo-notifications';
  */
 
 const KEY = 'reminders.v1';
-// Android never changes a channel after it is created, so the alarm sound needs a new channel id.
-const CHANNEL = 'reminder-alarm-v2';
+// Android does not allow changing a channel's sound after it has been created.
+// A versioned id gives existing installs the corrected alarm audio settings.
+const CHANNEL = 'reminder-alarm-v3';
 const OLD_CHANNELS = ['reminders'];
 const SOUND = 'alarm.wav';
 const CATEGORY = 'reminder';
@@ -122,13 +123,14 @@ export async function addReminder(text, at) {
   if ((await ensurePermission()) !== 'granted') throw Object.assign(new Error('denied'), { code: 'denied' });
   const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const exact = await exactAlarmsAllowed();
+  if (!exact) throw Object.assign(new Error('exact-denied'), { code: 'exact-denied' });
   const notificationIds = [];
   for (let ring = 0; ring < MAX_RINGS; ring++) {
     const when = new Date(at.getTime() + ring * REPEAT_EVERY_MIN * 60_000);
     notificationIds.push(
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: ring === 0 ? '⏰ Reminder' : `⏰ Reminder (ringing again, ${ring + 1}/${MAX_RINGS})`,
+          title: ring === 0 ? 'Reminder alarm' : `Reminder alarm (${ring + 1}/${MAX_RINGS})`,
           body: text,
           sound: SOUND,
           categoryIdentifier: CATEGORY,
@@ -141,7 +143,7 @@ export async function addReminder(text, at) {
           type: Notifications.SchedulableTriggerInputTypes.DATE,
           date: when,
           channelId: CHANNEL,
-          ...(exact ? { delivery: 'alarmClock' } : {}),
+          delivery: 'alarmClock',
         },
       }),
     );

@@ -66,12 +66,28 @@ export default function ReminderSheet({ visible, onClose }) {
     if (when.getTime() <= Date.now()) return setError(t.reminderPast);
     setBusy(true);
     try {
+      if (!(await exactAlarmsAllowed())) {
+        const allowed = await askExactAlarms();
+        setExact(allowed);
+        if (!allowed) {
+          setError(t.exactAlarmRequired);
+          return;
+        }
+      }
       await addReminder(note, when);
       setText('');
       setSavedMsg(t.reminderSet(niceDate(isoDate(when), t), timeText(when)));
       setParts(toParts(defaultTime()));
     } catch (err) {
-      setError(err?.code === 'denied' ? t.reminderDenied : err?.code === 'past' ? t.reminderPast : t.somethingWrong);
+      setError(
+        err?.code === 'denied'
+          ? t.reminderDenied
+          : err?.code === 'exact-denied'
+            ? t.exactAlarmRequired
+            : err?.code === 'past'
+              ? t.reminderPast
+              : t.somethingWrong,
+      );
     } finally {
       setBusy(false);
     }
@@ -134,7 +150,8 @@ export default function ReminderSheet({ visible, onClose }) {
                   onChangeText={setText}
                   placeholder={t.reminderPlaceholder}
                   placeholderTextColor={colors.muted}
-                  multiline
+                  maxLength={100}
+                  returnKeyType="done"
                 />
 
                 <View style={styles.chips}>
@@ -198,9 +215,15 @@ export default function ReminderSheet({ visible, onClose }) {
                     })}
                   </View>
                 </View>
-                <Text style={styles.whenLine}>
-                  {t.ringsAt(niceDate(parts.day, t), timeText(when))}
-                </Text>
+                <View style={styles.alarmSummary}>
+                  <View style={styles.alarmSummaryIcon}>
+                    <Ionicons name="alarm-outline" size={18} color={BLUE} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.alarmSummaryTime}>{niceDate(parts.day, t)} · {timeText(when)}</Text>
+                    <Text style={styles.alarmSummaryText}>{t.alarmRepeat}</Text>
+                  </View>
+                </View>
 
                 {!exact && (
                   <Pressable onPress={async () => setExact(await askExactAlarms())} style={styles.exact} accessibilityRole="button">
@@ -242,8 +265,8 @@ const styles = StyleSheet.create({
   headIcon: { width: 32, height: 32, borderRadius: radius.md, backgroundColor: BLUE, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, fontSize: 17, fontWeight: '600', color: colors.brown },
   close: { padding: 4 },
-  body: { padding: 16, gap: 18 },
-  block: { gap: 10 },
+  body: { padding: 16, gap: 14 },
+  block: { gap: 9 },
   label: { fontSize: 14, fontWeight: '600', color: colors.brown },
   subLabel: { fontSize: 13, fontWeight: '500', color: colors.muted, marginTop: 2 },
   item: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radius.md, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: BLUE_SOFT },
@@ -254,7 +277,7 @@ const styles = StyleSheet.create({
   itemWhen: { fontSize: 12, color: colors.muted, marginTop: 2 },
   finish: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.green, paddingHorizontal: 10, paddingVertical: 8, borderRadius: radius.md },
   finishText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  input: { minHeight: 70, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, color: colors.text, textAlignVertical: 'top' },
+  input: { height: 50, borderWidth: 1, borderColor: colors.line, borderRadius: radius.md, paddingHorizontal: 12, fontSize: 15, color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: BLUE_SOFT, borderWidth: 1, borderColor: '#BFDBFE' },
   chipText: { fontSize: 13, fontWeight: '600', color: BLUE },
@@ -272,7 +295,10 @@ const styles = StyleSheet.create({
   ampmBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line },
   ampmOn: { backgroundColor: BLUE, borderColor: BLUE },
   ampmText: { fontSize: 14, fontWeight: '600', color: colors.muted },
-  whenLine: { fontSize: 13, color: BLUE, fontWeight: '600' },
+  alarmSummary: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: radius.md, backgroundColor: BLUE_SOFT, borderWidth: 1, borderColor: '#BFDBFE' },
+  alarmSummaryIcon: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' },
+  alarmSummaryTime: { fontSize: 14, color: colors.brown, fontWeight: '600' },
+  alarmSummaryText: { marginTop: 1, fontSize: 11, color: colors.muted },
   exact: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, borderRadius: radius.md, backgroundColor: colors.orangeSoft },
   exactText: { flex: 1, fontSize: 13, color: colors.orange, fontWeight: '500' },
 });
