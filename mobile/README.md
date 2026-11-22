@@ -35,6 +35,37 @@ npx eas-cli@latest build -p android --profile preview
 
 3. When the build finishes, open the download link on the phone and install the APK (Android will ask to allow installing from this source).
 
+## Publishing future updates
+
+The app checks `GET /api/app-version` when it launches and whenever it returns to the foreground.
+The backend values come from `MOBILE_LATEST_VERSION`, `MOBILE_MIN_SUPPORTED_VERSION`,
+`MOBILE_DOWNLOAD_URL`, and `MOBILE_RELEASE_NOTES` (with production defaults in
+`backend/src/main/resources/application.properties`).
+
+For JavaScript, styling, or asset changes that need no new native module:
+
+```bash
+cd mobile
+npx eas-cli@latest update --channel production --platform android --environment production --message "Describe the update"
+```
+
+The installed app downloads a compatible update and restarts into it. Keep the same `expo.version`
+for compatible OTA updates.
+
+For native dependency, permission, Expo SDK, or breaking API changes:
+
+1. Increase `expo.version` and `expo.android.versionCode` in `app.json`.
+2. Build a signed APK with `npx eas-cli@latest build -p android --profile preview`.
+3. Put the APK at `frontend/public/downloads/geethus-corner-VERSION.apk` and update the website's
+   `APP_VERSION` in `frontend/src/pages/DownloadApp.jsx`.
+4. Set the backend's latest and minimum supported versions to that version, then deploy the backend
+   and website.
+5. Existing supported installations receive OTA updates. Installations below the minimum version
+   see the blocking update screen and open the stable `/download` page.
+
+Never change `android.package` or the EAS Android signing credential. Those two values allow a new
+APK to install over the existing app and preserve its data.
+
 ## Notes
 
 - A free Render backend sleeps when idle; the first open of the day can take up to a minute. The app shows "Opening the shop…" meanwhile.
