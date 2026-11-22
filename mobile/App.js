@@ -12,13 +12,16 @@ import LoginScreen from './src/LoginScreen';
 import HomeScreen from './src/HomeScreen';
 import SaleScreen from './src/SaleScreen';
 import DataScreen from './src/DataScreen';
+import UpdateGate from './src/UpdateGate';
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <LangProvider>
         <StatusBar style="dark" />
-        <Root />
+        <UpdateGate>
+          <Root />
+        </UpdateGate>
       </LangProvider>
     </SafeAreaProvider>
   );

@@ -14,7 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-/** Every /api request needs a valid admin token, except login and the health check. */
+/** Every /api request needs a valid admin token, except login, health, and app release metadata. */
 @Component
 public class AuthInterceptor implements HandlerInterceptor {
   public static final String EMAIL_ATTRIBUTE = "adminEmail";
@@ -53,7 +53,11 @@ public class AuthInterceptor implements HandlerInterceptor {
 
   @Override
   public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws IOException {
-    if (HttpMethod.OPTIONS.matches(request.getMethod()) || request.getRequestURI().equals("/api/auth/login") || request.getRequestURI().equals("/api/health") || request.getRequestURI().equals("/api/health/db")) {
+    if (HttpMethod.OPTIONS.matches(request.getMethod())
+        || request.getRequestURI().equals("/api/auth/login")
+        || request.getRequestURI().equals("/api/health")
+        || request.getRequestURI().equals("/api/health/db")
+        || request.getRequestURI().equals("/api/app-version")) {
       return true;
     }
     String header = request.getHeader("Authorization");

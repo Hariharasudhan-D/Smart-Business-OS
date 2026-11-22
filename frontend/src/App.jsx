@@ -12,6 +12,7 @@ import Customers from './pages/Customers';
 import CustomerDetail from './pages/CustomerDetail';
 import Sales from './pages/Sales';
 import InvoiceDetail from './pages/InvoiceDetail';
+import DownloadApp from './pages/DownloadApp';
 // Everything except /login needs the admin to be signed in; data is only fetched once they are.
 function RequireAuth() {
   const { isAuthenticated } = useAuth();
@@ -26,6 +27,7 @@ function RequireAuth() {
 export default function App() {
   return (
     <Routes>
+      <Route path="/download" element={<DownloadApp />} />
       <Route path="/login" element={<Login />} />
       <Route element={<RequireAuth />}>
       <Route element={<Layout />}>
