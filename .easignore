@@ -1,0 +1,16 @@
+# EAS reads this file from the Git repository root. This repository contains
+# several separate local projects, while the EAS project is only mobile/.
+*
+!mobile/
+!mobile/**
+
+# Build inputs are installed or generated on EAS.
+mobile/node_modules/
+mobile/.expo/
+mobile/dist/
+mobile/dist-check/
+mobile/.env
+mobile/android/
+mobile/ios/
+*.log
+.git/
