@@ -50,13 +50,13 @@ export default function ReminderSheet({ visible, onClose }) {
 
   const when = fromParts(parts);
   const today = isoDate();
-  const setWhen = (d) => setParts(toParts(d));
-  const quick = [
-    { label: t.in30, at: () => new Date(Date.now() + 30 * 60 * 1000) },
-    { label: t.in1h, at: () => new Date(Date.now() + 60 * 60 * 1000) },
-    { label: t.today6pm, at: () => new Date(new Date().setHours(18, 0, 0, 0)), hide: new Date().getHours() >= 18 },
-    { label: t.tomorrow9am, at: () => { const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(9, 0, 0, 0); return d; } },
-  ].filter((q) => !q.hide);
+  const quickDates = Array.from({ length: 5 }, (_, index) => {
+    const day = addDays(today, index + 1);
+    return {
+      day,
+      label: index === 0 ? t.tomorrow : String(Number(day.slice(-2))),
+    };
+  });
 
   const save = async () => {
     setError('');
@@ -138,11 +138,21 @@ export default function ReminderSheet({ visible, onClose }) {
                 />
 
                 <View style={styles.chips}>
-                  {quick.map((q) => (
-                    <Pressable key={q.label} onPress={() => setWhen(q.at())} style={styles.chip} accessibilityRole="button">
-                      <Text style={styles.chipText}>{q.label}</Text>
-                    </Pressable>
-                  ))}
+                  {quickDates.map((option) => {
+                    const selected = parts.day === option.day;
+                    return (
+                      <Pressable
+                        key={option.day}
+                        onPress={() => setParts((current) => ({ ...current, day: option.day }))}
+                        style={[styles.chip, selected && styles.chipOn]}
+                        accessibilityRole="button"
+                        accessibilityLabel={niceDate(option.day, t)}
+                        accessibilityState={{ selected }}
+                      >
+                        <Text style={[styles.chipText, selected && styles.chipTextOn]}>{option.label}</Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
 
                 <Text style={styles.subLabel}>{t.date}</Text>
@@ -248,6 +258,8 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 999, backgroundColor: BLUE_SOFT, borderWidth: 1, borderColor: '#BFDBFE' },
   chipText: { fontSize: 13, fontWeight: '600', color: BLUE },
+  chipOn: { backgroundColor: BLUE, borderColor: BLUE },
+  chipTextOn: { color: '#fff' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   arrow: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
   stepValue: { flex: 1, textAlign: 'center', fontSize: 15, fontWeight: '600', color: colors.brown },
