@@ -1,16 +1,22 @@
 # EAS reads this file from the Git repository root. This repository contains
-# several separate local projects, while the EAS project is only mobile/.
-*
-!mobile/
-!mobile/**
+# several separate projects, while the EAS project is only mobile/.
+app_ai_chatbot/
+backend/
+frontend/
+mobile_flutter/
+ja
+.eas-archive/
 
 # Build inputs are installed or generated on EAS.
-mobile/node_modules/
-mobile/.expo/
-mobile/dist/
-mobile/dist-check/
-mobile/.env
-mobile/android/
-mobile/ios/
+**/node_modules/
+**/.expo/
+**/dist/
+**/dist-check/
+**/.env
+**/android/
+**/ios/
+**/build/
+**/target/
+**/.venv/
 *.log
 .git/
