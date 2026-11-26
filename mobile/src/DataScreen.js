@@ -105,13 +105,13 @@ export default function DataScreen({ active, refreshKey, onChanged }) {
   const salesQ = section === 'sales' ? q : '';
 
   // Each list asks the server only for its page.
-  const histSales = usePaged((page) => paths.salesPage({ page, size: PAGE_SIZE, q: histQ, from, to }), active, reloadKey);
+  const histSales = usePaged((page) => paths.salesPage({ page, size: PAGE_SIZE, q: histQ, from, to }), active && section === 'history', reloadKey);
   const histPurchases = usePaged((page) => paths.purchasesPage({ page, size: PAGE_SIZE, q: histQ, from, to }), active && section === 'history', reloadKey);
-  const allSales = usePaged((page) => paths.salesPage({ page, size: PAGE_SIZE, q: salesQ }), active, reloadKey);
+  const allSales = usePaged((page) => paths.salesPage({ page, size: PAGE_SIZE, q: salesQ }), active && section === 'sales', reloadKey);
 
   // Sales, purchases and profit for the chosen period come from the server, so they match Home.
   useEffect(() => {
-    if (!active) return undefined;
+    if (!active || section !== 'history') return undefined;
     let alive = true;
     setHRep(peek(paths.report(from, to))?.totals ?? null);
     api
@@ -121,7 +121,7 @@ export default function DataScreen({ active, refreshKey, onChanged }) {
     return () => {
       alive = false;
     };
-  }, [from, to, active, reloadKey, t]);
+  }, [from, to, active, section, reloadKey, t]);
 
   const listError = histSales.error || histPurchases.error || allSales.error;
   const shownError = error || (listError ? errorText(t, listError) : '');

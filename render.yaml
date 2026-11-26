@@ -22,10 +22,10 @@ services:
       - key: CORS_ORIGINS
         sync: false
       - key: MOBILE_LATEST_VERSION
-        value: 1.1.0
+        value: 1.1.1
       - key: MOBILE_MIN_SUPPORTED_VERSION
         value: 1.1.0
       - key: MOBILE_DOWNLOAD_URL
         value: https://smart-business-os.vercel.app/download
       - key: MOBILE_RELEASE_NOTES
-        value: Reliable app updates,New Render backend connection,Improved startup and sign-in diagnostics
+        value: Quicker startup,Manual app updates

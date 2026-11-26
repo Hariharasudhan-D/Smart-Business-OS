@@ -1,7 +1,7 @@
 import { Download, RefreshCw, ShieldCheck, Smartphone } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
-const APP_VERSION = '1.1.0';
+const APP_VERSION = '1.1.1';
 const DOWNLOAD_PAGE_URL = 'https://smart-business-os.vercel.app/download';
 const APK_URL = `https://smart-business-os.vercel.app/downloads/geethus-corner-${APP_VERSION}.apk`;
 
@@ -23,7 +23,7 @@ export default function DownloadApp() {
           <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-300">Version {APP_VERSION}</p>
           <h1 className="mt-3 max-w-xl text-3xl font-bold tracking-tight sm:text-5xl">Your shop, ready wherever you are.</h1>
           <p className="mt-5 max-w-xl text-base leading-7 text-slate-300">
-            Install the latest signed Android app with the new Render backend connection and reliable update checks.
+            Install the signed Android app once. For future releases, tap Update on Home or the sign-in screen.
           </p>
 
           <a
@@ -41,7 +41,7 @@ export default function DownloadApp() {
             </div>
             <div className="flex items-start gap-2.5">
               <RefreshCw className="mt-0.5 shrink-0 text-indigo-300" size={18} aria-hidden="true" />
-              <span>Installs over version 1.0.1</span>
+              <span>Installs over version 1.1.0</span>
             </div>
           </div>
         </section>

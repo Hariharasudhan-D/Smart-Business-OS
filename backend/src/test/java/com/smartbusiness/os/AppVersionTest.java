@@ -21,9 +21,9 @@ class AppVersionTest {
   void releaseMetadataIsPublicAndComplete() throws Exception {
     mvc.perform(get("/api/app-version"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.latestVersion").value("1.1.0"))
+        .andExpect(jsonPath("$.latestVersion").value("1.1.1"))
         .andExpect(jsonPath("$.minimumSupportedVersion").value("1.1.0"))
         .andExpect(jsonPath("$.downloadUrl").value("https://smart-business-os.vercel.app/download"))
-        .andExpect(jsonPath("$.releaseNotes[0]").value("Reliable app updates"));
+        .andExpect(jsonPath("$.releaseNotes[0]").value("Quicker startup"));
   }
 }

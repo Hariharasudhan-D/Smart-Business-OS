@@ -1,4 +1,4 @@
-import { AppState, Linking, Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 import * as Updates from 'expo-updates';
 import { API_URL } from './config';
 
@@ -7,10 +7,11 @@ const CHECK_TIMEOUT_MS = 15_000;
 export const currentAppVersion = Updates.runtimeVersion || 'development';
 
 function versionParts(version) {
-  return String(version || '')
+  const parts = String(version || '')
     .split(/[.+-]/)
     .slice(0, 3)
     .map((part) => Number.parseInt(part, 10) || 0);
+  return [parts[0] ?? 0, parts[1] ?? 0, parts[2] ?? 0];
 }
 
 export function compareVersions(left, right) {
@@ -42,12 +43,10 @@ async function fetchReleaseMetadata() {
 }
 
 export async function checkForAppUpdate() {
-  if (Platform.OS === 'web' || currentAppVersion === 'development') return { required: false };
   const release = await fetchReleaseMetadata();
   return {
-    required: compareVersions(currentAppVersion, release.minimumSupportedVersion) < 0,
-    currentVersion: currentAppVersion,
     ...release,
+    available: compareVersions(currentAppVersion, release.latestVersion) < 0,
   };
 }
 
@@ -55,23 +54,13 @@ export async function installCompatibleUpdate(onStatus) {
   if (__DEV__ || !Updates.isEnabled || Platform.OS === 'web') return false;
   onStatus?.('checking');
   const update = await Updates.checkForUpdateAsync();
-  if (!update.isAvailable) {
-    onStatus?.('idle');
-    return false;
-  }
+  if (!update.isAvailable) return false;
   onStatus?.('downloading');
-  await Updates.fetchUpdateAsync();
+  const downloaded = await Updates.fetchUpdateAsync();
+  if (!downloaded.isNew && !downloaded.isRollBackToEmbedded) return false;
   onStatus?.('restarting');
   await Updates.reloadAsync();
   return true;
-}
-
-export function watchAppResume(callback) {
-  let previous = AppState.currentState;
-  return AppState.addEventListener('change', (next) => {
-    if (previous !== 'active' && next === 'active') callback();
-    previous = next;
-  });
 }
 
 export async function openUpdateDownload(url) {

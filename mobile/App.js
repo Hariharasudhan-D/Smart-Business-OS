@@ -3,7 +3,7 @@ import { ActivityIndicator, Alert, BackHandler, Image, Platform, Pressable, Styl
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
-import { loadCache, loadSession, setSignedOutHandler, signOut, wakeUp } from './src/api';
+import { loadCache, loadSession, setSignedOutHandler, signOut } from './src/api';
 import { loadContacts } from './src/contacts';
 import { listenForFinish, setupReminders } from './src/reminders';
 import { LangProvider, useLang } from './src/i18n';
@@ -12,16 +12,13 @@ import LoginScreen from './src/LoginScreen';
 import HomeScreen from './src/HomeScreen';
 import SaleScreen from './src/SaleScreen';
 import DataScreen from './src/DataScreen';
-import UpdateGate from './src/UpdateGate';
 
 export default function App() {
   return (
     <SafeAreaProvider>
       <LangProvider>
         <StatusBar style="dark" />
-        <UpdateGate>
-          <Root />
-        </UpdateGate>
+        <Root />
       </LangProvider>
     </SafeAreaProvider>
   );
@@ -42,7 +39,6 @@ function Root() {
   const goHome = useCallback(() => setTab('home'), []);
 
   useEffect(() => {
-    wakeUp();
     // First thing on opening the app: ask for Contacts, so customer names and numbers can be filled from the phone.
     // Android/iOS only show this popup once; after that it just loads the contacts in the background.
     loadContacts();

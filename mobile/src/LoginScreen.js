@@ -5,6 +5,7 @@ import { signIn } from './api';
 import { errorText, useLang } from './i18n';
 import { colors, radius, shadow } from './theme';
 import { BigButton, Notice } from './ui';
+import UpdateButton from './UpdateButton';
 
 export default function LoginScreen({ onSignedIn }) {
   const { t } = useLang();
@@ -86,6 +87,7 @@ export default function LoginScreen({ onSignedIn }) {
           {!!error && <Notice text={error} />}
 
           <BigButton label={busy ? t.signingIn : t.signIn} icon="log-in-outline" onPress={submit} busy={busy} style={{ marginTop: 8 }} />
+          <UpdateButton />
         </View>
       </ScrollView>
     </KeyboardAvoidingView>

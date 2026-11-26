@@ -8,6 +8,7 @@ import { colors, radius, shadow } from './theme';
 import { Card, Notice } from './ui';
 import ReminderSheet, { BLUE } from './ReminderSheet';
 import { useReminders } from './reminders';
+import UpdateButton from './UpdateButton';
 
 const PERIODS = ['today', 'yesterday', 'dayBefore', 'thisWeek'];
 
@@ -37,7 +38,6 @@ export default function HomeScreen({ refreshKey }) {
   const [rep, setRep] = useState(null); // numbers calculated by the server
   const slowTimer = useRef(null);
   const latest = useRef(0);
-  const prefetched = useRef(-1);
 
   // The chosen day/week and the month or year summary, all calculated by the server.
   // The full lists of sales and purchases are in Data → History.
@@ -56,14 +56,6 @@ export default function HomeScreen({ refreshKey }) {
     try {
       const [p, s2] = await Promise.all([api.report(from, to), api.report(sFrom, sTo)]);
       if (call === latest.current) setRep({ p, s: s2 });
-      // Load the other day buttons quietly, so tapping them shows numbers at once.
-      if (prefetched.current !== refreshKey) {
-        prefetched.current = refreshKey;
-        PERIODS.filter((x) => x !== period).forEach((x) => {
-          const [f, tt] = periodRange(x);
-          api.report(f, tt).catch(() => {});
-        });
-      }
     } catch (err) {
       if (call === latest.current) setError(errorText(t, err));
     } finally {
@@ -72,11 +64,11 @@ export default function HomeScreen({ refreshKey }) {
         setSlow(false);
       }
     }
-  }, [period, sumMode, sumYear, sumMonth, refreshKey, t]);
+  }, [period, sumMode, sumYear, sumMonth, t]);
 
   useEffect(() => {
     load();
-  }, [load]);
+  }, [load, refreshKey]);
   useEffect(() => () => clearTimeout(slowTimer.current), []);
 
   const onRefresh = async () => {
@@ -117,6 +109,7 @@ export default function HomeScreen({ refreshKey }) {
         <Text style={[styles.greeting, { flex: 1 }]} numberOfLines={1}>
           {greeting}
         </Text>
+        <UpdateButton compact />
         <Pressable
           onPress={() => setReminderOpen(true)}
           style={({ pressed }) => [styles.reminderBtn, pressed && { opacity: 0.85 }]}

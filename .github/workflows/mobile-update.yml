@@ -1,0 +1,35 @@
+name: Publish Android update
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-update.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-production-update
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: '27.11.0'
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - run: npm run lint
+      - run: eas update --channel production --platform android --environment production --message "$GITHUB_SHA" --non-interactive

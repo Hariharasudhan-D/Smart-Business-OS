@@ -47,8 +47,7 @@ public class ReportController {
   }
 
   /**
-   * Everything the report needs for [from, to], in one database round trip and without loading
-   * sale items or rows outside the range:
+   * Daily totals and counts for [from, to], in one database round trip:
    *   paid     = shop sales by the day the money came in (sales)
    *   booked   = shop sales by order day (orders, delivery charges)
    *   purchase = purchases by purchase day
@@ -56,21 +55,28 @@ public class ReportController {
    *              the website-sales list: after the "start from zero" cutoff, with a buyer and at least one item.
    */
   private static final String SQL = """
-      select 'paid' as row_kind, s.paid_on as row_day, s.total as row_amount from os.sales s
-        where s.paid_on between ? and ?
-      union all
-      select 'booked', s.sale_date, s.delivery_charge from os.sales s
-        where s.sale_date between ? and ?
-      union all
-      select 'purchase', p.purchase_date, p.total from os.purchases p
-        where p.purchase_date between ? and ?
-      union all
-      select 'web', o.delivery_date, o.total from public.orders o
-        join public.users u on u.id = o.user_id
-        where o.status = 'DELIVERED'
-          and o.id > (select max(after_order_id) from os.website_sync)
-          and o.delivery_date between ? and ?
-          and exists (select 1 from public.order_items i where i.order_id = o.id)
+      select row_kind, row_day,
+          coalesce(sum(case when row_kind <> 'booked' or row_amount > 0 then row_amount end), 0) as amount,
+          count(*) as order_count,
+          count(case when row_kind = 'booked' and row_amount > 0 then 1 end) as delivery_count
+      from (
+        select 'paid' as row_kind, s.paid_on as row_day, s.total as row_amount from os.sales s
+          where s.paid_on between ? and ?
+        union all
+        select 'booked', s.sale_date, s.delivery_charge from os.sales s
+          where s.sale_date between ? and ?
+        union all
+        select 'purchase', p.purchase_date, p.total from os.purchases p
+          where p.purchase_date between ? and ?
+        union all
+        select 'web', o.delivery_date, o.total from public.orders o
+          join public.users u on u.id = o.user_id
+          where o.status = 'DELIVERED'
+            and o.id > (select max(after_order_id) from os.website_sync)
+            and o.delivery_date between ? and ?
+            and exists (select 1 from public.order_items i where i.order_id = o.id)
+      ) daily_entries
+      group by row_kind, row_day
       """;
 
   private final JdbcTemplate jdbc;
@@ -80,7 +86,6 @@ public class ReportController {
   }
 
   /** group: day | month | year | none. Every bucket in [from, to] is returned, empty ones as zeros. */
-  // Not one big transaction: it would hold a database connection while the website sync needs another.
   @GetMapping
   public Report report(@RequestParam LocalDate from, @RequestParam LocalDate to, @RequestParam(defaultValue = "none") String group) {
     if (from.isAfter(to)) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "The start date must be on or before the end date");
@@ -106,20 +111,18 @@ public class ReportController {
     jdbc.query(SQL, rs -> {
       Bucket b = at.apply(rs.getObject("row_day", LocalDate.class));
       if (b == null) return;
-      BigDecimal amount = rs.getBigDecimal("row_amount") == null ? BigDecimal.ZERO : rs.getBigDecimal("row_amount");
+      BigDecimal amount = rs.getBigDecimal("amount");
       switch (rs.getString("row_kind")) {
         case "paid" -> b.sales = b.sales.add(amount);
         case "booked" -> {
-          b.orders++;
-          if (amount.signum() > 0) {
-            b.delivery = b.delivery.add(amount);
-            b.deliveries++;
-          }
+          b.orders += rs.getInt("order_count");
+          b.delivery = b.delivery.add(amount);
+          b.deliveries += rs.getInt("delivery_count");
         }
         case "purchase" -> b.purchases = b.purchases.add(amount);
         case "web" -> {
           b.sales = b.sales.add(amount);
-          b.orders++;
+          b.orders += rs.getInt("order_count");
         }
         default -> { }
       }

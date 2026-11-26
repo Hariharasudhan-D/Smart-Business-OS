@@ -2,7 +2,7 @@
   "expo": {
     "name": "Geethu's Corner",
     "slug": "geethus-corner-shop",
-    "version": "1.1.0",
+    "version": "1.1.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -21,7 +21,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.geethuscorner.shop",
-      "versionCode": 2,
+      "versionCode": 3,
       "permissions": [
         "READ_CONTACTS",
         "SCHEDULE_EXACT_ALARM",
@@ -80,6 +80,7 @@
     },
     "owner": "hariharasudhan05",
     "updates": {
+      "checkAutomatically": "NEVER",
       "url": "https://u.expo.dev/5eac2990-ea7e-405f-8376-7f46d541525f"
     }
   }

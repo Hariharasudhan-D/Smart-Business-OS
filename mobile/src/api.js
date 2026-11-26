@@ -102,6 +102,7 @@ const KEEP_ON_PHONE = (path) =>
   path.startsWith('/report') || path === '/customers' || path === '/products' || path === '/website-cakes' || (path.startsWith('/sales/feed') && path.includes('page=0'));
 let cacheLoad = null;
 let saveTimer = null;
+const pendingReads = new Map();
 
 /** Reads the answers saved on the phone. Call once at start, before the first screen. */
 export function loadCache() {
@@ -141,6 +142,18 @@ const STARTING = [502, 503, 504];
  */
 async function request(path, options = {}) {
   const isRead = (options.method ?? 'GET') === 'GET';
+  if (isRead && pendingReads.has(path)) return pendingReads.get(path);
+  const operation = requestWithRetry(path, options, isRead);
+  if (!isRead) return operation;
+  pendingReads.set(path, operation);
+  try {
+    return await operation;
+  } finally {
+    pendingReads.delete(path);
+  }
+}
+
+async function requestWithRetry(path, options, isRead) {
   for (let attempt = 0; ; attempt++) {
     try {
       const data = await requestOnce(path, options);
@@ -152,11 +165,6 @@ async function request(path, options = {}) {
       await sleep(6000);
     }
   }
-}
-
-/** Starts waking the server as soon as the app opens; errors are ignored. */
-export function wakeUp() {
-  fetch(`${API_URL}/health`).catch(() => {});
 }
 
 /** Errors carry a short code the screens translate: offline, timeout, or the HTTP status. */

@@ -49,7 +49,7 @@ class ReportAndSyncTest {
     String item = "\"items\":[{\"productId\":\"" + cake + "\",\"qty\":1,\"unit\":\"pcs\",\"price\":500}]";
     // March 2019: a 500 cash sale with a 50 delivery charge, a 300 UPI sale, a 200 purchase
     post201("/api/sales", "{\"date\":\"2019-03-10\",\"customerId\":\"" + buyer + "\",\"paymentMode\":\"Cash\",\"deliveryType\":\"DELIVERY\",\"deliveryCharge\":50," + item + "}");
-    post201("/api/sales", "{\"date\":\"2019-03-11\",\"customerId\":\"" + buyer + "\",\"paymentMode\":\"UPI\","
+    post201("/api/sales", "{\"date\":\"2019-03-10\",\"customerId\":\"" + buyer + "\",\"paymentMode\":\"UPI\","
         + "\"items\":[{\"productId\":\"" + cake + "\",\"qty\":1,\"unit\":\"pcs\",\"price\":300}]}");
     post201("/api/purchases", "{\"date\":\"2019-03-12\",\"supplier\":\"Baker's World\",\"invoiceNo\":\"36\",\"taxRate\":0,"
         + "\"items\":[{\"productId\":\"" + cake + "\",\"qty\":2,\"unitCost\":100}]}");
@@ -59,7 +59,9 @@ class ReportAndSyncTest {
     Assertions.assertEquals(200.0, month.at("/totals/purchases").asDouble());
     Assertions.assertEquals(600.0, month.at("/totals/profit").asDouble());
     Assertions.assertEquals(50.0, month.at("/totals/delivery").asDouble());
+    Assertions.assertEquals(1, month.at("/totals/deliveries").asInt());
     Assertions.assertEquals(2, month.at("/totals/orders").asInt());
+    Assertions.assertEquals(2, month.at("/rows/9/orders").asInt());
     Assertions.assertEquals(31, month.get("rows").size(), "every day of the month is listed");
 
     JsonNode year = getJson("/api/report?from=2019-01-01&to=2019-12-31&group=month");
